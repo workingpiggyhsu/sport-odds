@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>賠率換算與計算小工具 Odds Calculator (v1.15)</title>
+<style>
+  :root { color-scheme: light dark; }
+  * , *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: "Microsoft JhengHei","Noto Sans TC",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans",sans-serif;
+    background: linear-gradient(to bottom, #fafafa, #ffffff);
+    color: #111;
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  }
+  /* Dark scheme */
+  @media (prefers-color-scheme: dark) {
+    body { background: linear-gradient(to bottom, #0a0a0a, #111); color: #fff; }
+    .card, .label, .muted, .formula, .btn { color: #fff; }
+    .card { background: rgba(28,28,32,0.78); border-color: rgba(255,255,255,0.14); }
+    .muted { color: #e5e7eb; }
+    select, input { background: #17171c; color: #fff !important; border-color: #3f3f46; }
+    select option { color: #fff; background:#17171c; }
+    .btn { border-color: #3f3f46; background: #202026; }
+    .btn.active { background: #f4f4f5; color: #0b0b0b; }
+  }
+  .container { max-width: 1120px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 28px; margin: 0 0 8px; font-weight: 800; letter-spacing: -0.02em; }
+  h1 .sub { font-size: 18px; color: #6b7280; font-weight: 600; }
+  p.desc { margin: 0 0 24px; color: #4b5563; }
+  @media (prefers-color-scheme: dark) { p.desc { color: #c0c2c7; } h1 .sub { color: #a0a4ad; } }
+  .grid { display: grid; gap: 16px; align-items: stretch; }
+  @media (min-width: 900px) { .grid.cols-3 { grid-template-columns: repeat(3, minmax(0,1fr));} .grid.cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  .card {
+    display: flex; flex-direction: column; justify-content: flex-start;
+    border: 1px solid rgba(0,0,0,0.1); border-radius: 16px; padding: 16px;
+    background: rgba(255,255,255,0.92);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+    backdrop-filter: blur(4px);
+    color:#111;
+  }
+  .label { font-size: 13px; font-weight: 700; margin-bottom: 8px; color: #111; letter-spacing: .2px;}
+  .muted { color: #333; font-size: 12px; }
+  /* Wine theme tiles */
+  .soft {
+    background: linear-gradient(135deg, rgba(120,0,40,0.92), rgba(150,22,55,0.92));
+    border-radius: 12px; padding: 12px; border:1px solid #7f1d1d; color:#fff;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 6px 14px rgba(127,29,29,0.15);
+  }
+  .soft .muted { color: #ffe4e6; opacity: .9; }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 6px 0; font-size: 14px; }
+  .right { text-align: right; font-weight: 800; letter-spacing: .3px; }
+  .btn { padding: 8px 14px; border: 1px solid #0b0b0b; border-radius: 999px; background: #f6f7f9; cursor: pointer; font-weight: 700; color:#111;}
+  .btn.active { background: #0b0b0b; color: #fff; }
+  input, select { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid #d1d5db; font-size: 14px; box-shadow: inset 0 1px 1px rgba(0,0,0,0.03); color:#111; }
+  input::placeholder { color: #6b7280; }
+  .field { margin-bottom: 10px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eef2f7; font-size: 12px; margin-right: 6px; border: 1px solid #e2e8f0; color:#111; }
+  @media (prefers-color-scheme: dark){ .pill{ background:#2a2a33; border-color:#3c3c47; color:#f4f4f5;} }
+  .formula { border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; padding: 12px; background: #111; color:#fff; }
+  /* Footer notes inside cards: force black text for clarity on light card bg */
+  .footer { font-size: 12px; margin-top: 16px; }
+  .card .footer, .card .footer li, .card .footer ul li, .card .footer strong { color: #000 !important; }
+  .footer ul { margin:6px 0 0 20px; padding:0; line-height:1.6; }
+  .footer li { margin:2px 0; }
+  .space { height: 24px; }
+  .stack { display: grid; gap: 8px; }
+  .inline { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 賠率換算與計算小工具 <span class="sub">Odds Calculator</span></h1>
+    <p class="desc">v1.15：整合 Notes 黑字修正到完整工具；保留雙視角、酒紅主題與對比規則。</p>
+
+    <div class="grid cols-3">
+      <div class="card">
+        <div class="field">
+          <div class="label">盤口格式 Odds Format</div>
+          <select id="format">
+            <option value="EU">歐洲盤 European</option>
+            <option value="HK">香港盤 Hong Kong</option>
+            <option value="Malay">馬來盤 Malay</option>
+            <option value="Indo">印尼盤 Indo</option>
+            <option value="US">美國盤 Moneyline</option>
+            <option value="Frac">英國盤 Fractional</option>
+          </select>
+        </div>
+        <div class="field">
+          <div class="label">盤口數值 Odds Value</div>
+          <input id="oddsValue" placeholder="e.g. 1.94 / -0.97 / +145 或 4/5" />
+        </div>
+        <div class="muted">* Fractional 用 a/b；US 可輸入 +145 或 -160；Malay/Indo 支援正負。</div>
+      </div>
+
+      <div class="card">
+        <div class="field">
+          <div class="label">輸入模式 Input Mode</div>
+          <div class="inline" style="margin-bottom:6px;">
+            <button class="btn active" id="btnStake">押注金 Stake</button>
+            <button class="btn" id="btnToWin">欲贏金 To-Win</button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="label" id="amountLabel">押注金 Stake (S)</div>
+          <input id="amount" placeholder="e.g. 100" />
+        </div>
+        <div class="muted">* 負數馬來/印尼盤常見以「欲贏金」輸入；此處兩種模式皆支援且會自動換算。</div>
+      </div>
+
+      <div class="card">
+        <div class="field">
+          <div class="label">視角 Formula Perspective</div>
+          <div class="inline">
+            <button class="btn active" id="perspHK">亞洲算法（HK）</button>
+            <button class="btn" id="perspUS">美式算法（US）</button>
+          </div>
+        </div>
+        <div class="label">結果 Results</div>
+        <div class="row"><div class="muted">HK（每 1 單位盈利 / profit per 1）</div><div class="right" id="resHK">-</div></div>
+        <div class="row"><div class="muted">押注金 Stake (S)</div><div class="right" id="resStake">-</div></div>
+        <div class="row"><div class="muted">盈利 Profit</div><div class="right" id="resProfit">-</div></div>
+        <div class="row"><div class="muted">派彩 Payout</div><div class="right" id="resPayout">-</div></div>
+      </div>
+    </div>
+
+    <div class="space"></div>
+
+    <div class="card">
+      <div class="label">盤口換算 Conversions</div>
+      <div class="grid cols-3">
+        <div class="soft stack"><div class="muted">歐洲盤 European (EU)</div><div id="convEU" style="font-weight:900;font-size:18px; letter-spacing:.2px">-</div></div>
+        <div class="soft stack"><div class="muted">香港盤 Hong Kong (HK)</div><div id="convHK" style="font-weight:900;font-size:18px; letter-spacing:.2px">-</div></div>
+        <div class="soft stack"><div class="muted">馬來盤 Malay</div><div id="convMalay" style="font-weight:900;font-size:18px; letter-spacing:.2px">-</div></div>
+        <div class="soft stack"><div class="muted">印尼盤 Indo</div><div id="convIndo" style="font-weight:900;font-size:18px; letter-spacing:.2px">-</div></div>
+        <div class="soft stack"><div class="muted">美國盤 Moneyline (US)</div><div id="convUS" style="font-weight:900;font-size:18px; letter-spacing:.2px">-</div></div>
+        <div class="soft stack"><div class="muted">英國盤 Fractional</div><div id="convFrac" style="font-weight:900;font-size:18px; letter-spacing:.2px">-</div></div>
+      </div>
+      <div class="muted" id="convNote" style="margin-top:8px"></div>
+    </div>
+
+    <div class="space"></div>
+
+    <div class="card">
+      <div class="label">計算公式（中英） Formulas</div>
+      <div class="grid cols-2" id="formulaGrid"></div>
+      <div class="footer">
+        <strong>HK 為每 1 單位投注可獲得的「盈利」倍數（不含本金）：</strong>
+        <ul>
+          <li><strong>EU 歐洲盤</strong>：EU = HK + 1</li>
+          <li><strong>Malay 馬來盤</strong>：
+            <ul>
+              <li>HK ≤ 1 → +HK</li>
+              <li>HK > 1 → -1/HK</li>
+            </ul>
+          </li>
+          <li><strong>Indo 印尼盤</strong>：
+            <ul>
+              <li>HK ≥ 1 → +HK</li>
+              <li>HK < 1 → -1/HK</li>
+            </ul>
+          </li>
+          <li><strong>US 美國盤</strong>：
+            <ul>
+              <li>HK ≥ 1 → +100 × HK</li>
+              <li>HK < 1 → -100/HK</li>
+            </ul>
+          </li>
+          <li><strong>Frac 英國盤</strong>：HK 以最簡分數顯示</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="space"></div>
+
+    <div class="card">
+      <div class="label">變數對照 Glossary (Variables)</div>
+      <div class="grid cols-3">
+        <div class="soft"><div><span class="pill">S</span> <strong>押注金 Stake</strong></div><div class="muted">下單時實際扣款的金額 / Amount risked at bet placement.</div></div>
+        <div class="soft"><div><span class="pill">W</span> <strong>欲贏金 To-Win</strong></div><div class="muted">希望贏得的淨利 / Desired net profit target.</div></div>
+        <div class="soft"><div><span class="pill">HK</span> <strong>每 1 單位盈利 Profit per 1</strong></div><div class="muted">不含本金 / Excluding stake.</div></div>
+      </div>
+    </div>
+
+    <div class="footer">⚠️ 提醒：不同平台四捨五入規則可能不同；此工具為教學用途。Rounding may vary across platforms; this tool is for training purposes.</div>
+  </div>
+
+<script>
+// --- Utilities ---
+function clampDecimals(n, digits = 2) {
+  if (!isFinite(n)) return "-";
+  const factor = Math.pow(10, digits);
+  return (Math.round(n * factor) / factor).toFixed(digits);
+}
+function parseNumber(val) {
+  if (val === null || val === undefined) return NaN;
+  const n = Number(String(val).trim());
+  return isNaN(n) ? NaN : n;
+}
+function toFraction(x, maxDen = 1000) {
+  if (!isFinite(x) || x <= 0) return null;
+  let h1 = 1, h2 = 0, k1 = 0, k2 = 1, b = x;
+  while (true) {
+    const a = Math.floor(b);
+    const h = a * h1 + h2;
+    const k = a * k1 + k2;
+    if (k > maxDen) break;
+    h2 = h1; h1 = h; k2 = k1; k1 = k;
+    const frac = b - a;
+    if (frac === 0) break;
+    b = 1 / frac;
+  }
+  return { num: h1, den: k1 };
+}
+// format -> HK
+function toHK(format, value) {
+  switch (format) {
+    case "EU": {
+      const eu = parseNumber(value);
+      if (!(eu > 1)) return NaN;
+      return eu - 1;
+    }
+    case "HK": {
+      const hk = parseNumber(value);
+      return hk > 0 ? hk : NaN;
+    }
+    case "Malay": {
+      const m = parseNumber(value);
+      if (!isFinite(m)) return NaN;
+      return m >= 0 ? m : 1 / Math.abs(m);
+    }
+    case "Indo": {
+      const i = parseNumber(value);
+      if (!isFinite(i)) return NaN;
+      return i >= 0 ? i : 1 / Math.abs(i);
+    }
+    case "US": {
+      const u = parseNumber(value);
+      if (!isFinite(u) || u === 0) return NaN;
+      return u > 0 ? u / 100 : 100 / Math.abs(u);
+    }
+    case "Frac": {
+      const s = String(value).trim();
+      const parts = s.split("/");
+      if (parts.length !== 2) return NaN;
+      const a = parseNumber(parts[0]);
+      const b = parseNumber(parts[1]);
+      if (!(a > 0 && b > 0)) return NaN;
+      return a / b;
+    }
+    default: return NaN;
+  }
+}
+// HK -> others
+function fromHK(hk) {
+  if (!(hk > 0)) return null;
+  const EU = hk + 1;
+  const HK = hk;
+  const Malay = hk <= 1 ? +hk : -1 / hk;
+  const Indo = hk >= 1 ? +hk : -1 / hk;
+  const US = hk >= 1 ? +(100 * hk) : +(-100 / hk);
+  const frac = toFraction(hk);
+  const Frac = frac ? `${frac.num}/${frac.den}` : "-";
+  return { EU, HK, Malay, Indo, US, Frac };
+}
+// settlement by HK core
+function settleByHK(hk, mode, inputAmount) {
+  if (!(hk > 0)) return { stake: NaN, toWin: NaN, profit: NaN, payout: NaN };
+  const hkNum = hk;
+  if (mode === "stake") {
+    const S = Math.max(0, parseNumber(inputAmount));
+    const profit = S * hkNum;
+    const payout = S + profit;
+    return { stake: S, toWin: profit, profit, payout };
+  } else {
+    const W = Math.max(0, parseNumber(inputAmount));
+    const stake = W / hkNum;
+    const payout = stake + W;
+    return { stake, toWin: W, profit: W, payout };
+  }
+}
+function buildFormulaBlocks(format, hk, rawValue, stake, toWin, mode, perspective) {
+  const S = clampDecimals(stake);
+  const W = clampDecimals(toWin);
+  const HKv = clampDecimals(hk);
+  const conv = fromHK(hk);
+  const USv = conv ? conv.US : null;
+  const blocks = [];
+  if (perspective === "HK") {
+    blocks.push({ title: "亞洲算法（HK 視角）",
+      cn: `盈利 Profit = 押注金 Stake × HK = ${S} × ${HKv}`,
+      en: `Profit = Stake × HK = ${S} × ${HKv}` });
+    blocks.push({ title: "派彩（HK 視角）/ Payout",
+      cn: `派彩 Payout = Stake × (1 + HK) = ${S} × (1 + ${HKv})`,
+      en: `Payout = Stake × (1 + HK) = ${S} × (1 + ${HKv})` });
+  } else if (perspective === "US" && USv !== null) {
+    const usShown = USv > 0 ? "+" + clampDecimals(USv) : clampDecimals(USv);
+    if (USv >= 0) {
+      blocks.push({ title: `美式算法（US 視角：${usShown}）`,
+        cn: `盈利 Profit = Stake × (US/100) = ${S} × (${clampDecimals(USv)}/100)`,
+        en: `Profit = Stake × (US/100) = ${S} × (${clampDecimals(USv)}/100)` });
+      blocks.push({ title: "派彩（US 視角）/ Payout",
+        cn: `派彩 Payout = Stake + Profit = ${S} + ${S} × (${clampDecimals(USv)}/100)`,
+        en: `Payout = Stake + Profit = ${S} + ${S} × (${clampDecimals(USv)}/100)` });
+    } else {
+      const abs = clampDecimals(Math.abs(USv));
+      blocks.push({ title: `美式算法（US 視角：${usShown}）`,
+        cn: `盈利 Profit = Stake × (100/|US|) = ${S} × (100/${abs})`,
+        en: `Profit = Stake × (100/|US|) = ${S} × (100/${abs})` });
+      blocks.push({ title: "派彩（US 視角）/ Payout",
+        cn: `派彩 Payout = Stake + Profit = ${S} + ${S} × (100/${abs})`,
+        en: `Payout = Stake + Profit = ${S} + ${S} × (100/${abs})` });
+    }
+  }
+  // Format-specific explanations
+  if (format === "EU") {
+    const eu = clampDecimals(parseNumber(rawValue));
+    blocks.push({ title: "歐洲盤 / European Odds",
+      cn: `派彩 Payout = Stake × EU = ${S} × ${eu}`,
+      en: `Payout = Stake × EU = ${S} × ${eu}` });
+  } else if (format === "HK") {
+    const hkS = clampDecimals(parseNumber(rawValue));
+    blocks.push({ title: "香港盤 / Hong Kong Odds",
+      cn: `盈利 Profit = Stake × HK = ${S} × ${hkS}`,
+      en: `Profit = Stake × HK = ${S} × ${hkS}` });
+  } else if (format === "Malay") {
+    const m = parseNumber(rawValue);
+    if (isFinite(m)) {
+      if (m >= 0) {
+        blocks.push({ title: "馬來盤（正）/ Malay (Positive)",
+          cn: `盈利 Profit = Stake × m = ${S} × ${clampDecimals(m)}`,
+          en: `Profit = Stake × m = ${S} × ${clampDecimals(m)}` });
+      } else {
+        const abs = clampDecimals(Math.abs(m));
+        if (mode === "stake") {
+          blocks.push({ title: "馬來盤（負，押注金）/ Malay (Negative, Stake Mode)",
+            cn: `盈利 Profit = Stake ÷ |m| = ${S} ÷ ${abs}`,
+            en: `Profit = Stake ÷ |m| = ${S} ÷ ${abs}` });
+        } else {
+          blocks.push({ title: "馬來盤（負，欲贏金）/ Malay (Negative, To-Win Mode)",
+            cn: `風險金 Risk = To-Win × |m| = ${W} × ${abs}`,
+            en: `Risk = To-Win × |m| = ${W} × ${abs}` });
+        }
+      }
+    }
+  } else if (format === "Indo") {
+    const i = parseNumber(rawValue);
+    if (isFinite(i)) {
+      if (i >= 0) {
+        blocks.push({ title: "印尼盤（正）/ Indo (Positive)",
+          cn: `盈利 Profit = Stake × i = ${S} × ${clampDecimals(i)}`,
+          en: `Profit = Stake × i = ${S} × ${clampDecimals(i)}` });
+      } else {
+        const abs = clampDecimals(Math.abs(i));
+        if (mode === "stake") {
+          blocks.push({ title: "印尼盤（負，押注金）/ Indo (Negative, Stake Mode)",
+            cn: `盈利 Profit = Stake ÷ |i| = ${S} ÷ ${abs}`,
+            en: `Profit = Stake ÷ |i| = ${S} ÷ ${abs}` });
+        } else {
+          blocks.push({ title: "印尼盤（負，欲贏金）/ Indo (Negative, To-Win Mode)",
+            cn: `風險金 Risk = To-Win × |i| = ${W} × ${abs}`,
+            en: `Risk = To-Win × |i| = ${W} × ${abs}` });
+        }
+      }
+    }
+  } else if (format === "US") {
+    const u = parseNumber(rawValue);
+    if (isFinite(u) && u !== 0) {
+      if (u > 0) {
+        blocks.push({ title: "美國盤（正）/ Moneyline (Positive)",
+          cn: "盈利 Profit (on $100) = US/100 × 100 → Profit = Stake × (US/100)",
+          en: "Profit (on $100) = US/100 × 100 → Profit = Stake × (US/100)" });
+      } else {
+        blocks.push({ title: "美國盤（負）/ Moneyline (Negative)",
+          cn: "贏$100需投 |US|；一般化 Profit = Stake × (100/|US|)",
+          en: "Need to risk |US| to win $100; generalized Profit = Stake × (100/|US|)" });
+      }
+    }
+  } else if (format === "Frac") {
+    blocks.push({ title: "英國盤 / Fractional Odds",
+      cn: "盈利 Profit = Stake × (分子/分母) = Stake × HK（HK = 分子/分母）",
+      en: "Profit = Stake × (numerator/denominator) = Stake × HK (HK = num/den)" });
+  }
+  return blocks;
+}
+// DOM wiring
+const $ = (id) => document.getElementById(id);
+const els = {
+  format: $("format"), oddsValue: $("oddsValue"),
+  btnStake: $("btnStake"), btnToWin: $("btnToWin"),
+  amountLabel: $("amountLabel"), amount: $("amount"),
+  perspHK: $("perspHK"), perspUS: $("perspUS"),
+  resHK: $("resHK"), resStake: $("resStake"),
+  resProfit: $("resProfit"), resPayout: $("resPayout"),
+  convEU: $("convEU"), convHK: $("convHK"),
+  convMalay: $("convMalay"), convIndo: $("convIndo"),
+  convUS: $("convUS"), convFrac: $("convFrac"),
+  convNote: $("convNote"), formulaGrid: $("formulaGrid"),
+};
+let mode = "stake"; let perspective = "HK";
+function render() {
+  const format = els.format.value;
+  const oddsValue = els.oddsValue.value.trim();
+  const amount = els.amount.value.trim();
+  const hk = toHK(format, oddsValue);
+  if (isFinite(hk) && hk > 0) {
+    els.resHK.textContent = clampDecimals(hk);
+    const st = settleByHK(hk, mode, amount);
+    els.resStake.textContent = clampDecimals(st.stake);
+    els.resProfit.textContent = clampDecimals(st.profit);
+    els.resPayout.textContent = clampDecimals(st.payout);
+    const conv = fromHK(hk);
+    els.convEU.textContent = clampDecimals(conv.EU);
+    els.convHK.textContent = clampDecimals(conv.HK);
+    els.convMalay.textContent = clampDecimals(conv.Malay);
+    els.convIndo.textContent = clampDecimals(conv.Indo);
+    els.convUS.textContent = conv.US > 0 ? "+" + clampDecimals(conv.US) : clampDecimals(conv.US);
+    els.convFrac.textContent = conv.Frac;
+    els.convNote.textContent = "";
+    const blocks = buildFormulaBlocks(format, hk, oddsValue, st.stake, st.toWin, mode, perspective);
+    els.formulaGrid.innerHTML = "";
+    blocks.forEach((b) => {
+      const div = document.createElement("div");
+      div.className = "formula";
+      div.innerHTML = `<div style="font-weight:800;margin-bottom:6px">${b.title}</div>
+        <div style="font-size:14px;line-height:1.7">
+          <div>🇨🇳 ${b.cn}</div>
+          <div>🇬🇧 ${b.en}</div>
+        </div>`;
+      els.formulaGrid.appendChild(div);
+    });
+  } else {
+    [els.resHK, els.resStake, els.resProfit, els.resPayout,
+     els.convEU, els.convHK, els.convMalay, els.convIndo, els.convUS, els.convFrac]
+     .forEach(el => el.textContent = "-");
+    els.convNote.textContent = "請輸入有效盤口數值 Enter a valid odds value.";
+    els.formulaGrid.innerHTML = "";
+  }
+}
+function bind() {
+  els.btnStake.addEventListener("click", () => {
+    mode = "stake";
+    els.btnStake.classList.add("active");
+    els.btnToWin.classList.remove("active");
+    els.amountLabel.textContent = "押注金 Stake (S)";
+    render();
+  });
+  els.btnToWin.addEventListener("click", () => {
+    mode = "towin";
+    els.btnToWin.classList.add("active");
+    els.btnStake.classList.remove("active");
+    els.amountLabel.textContent = "欲贏金 To-Win (W)";
+    render();
+  });
+  els.perspHK.addEventListener("click", () => {
+    perspective = "HK";
+    els.perspHK.classList.add("active");
+    els.perspUS.classList.remove("active");
+    render();
+  });
+  els.perspUS.addEventListener("click", () => {
+    perspective = "US";
+    els.perspUS.classList.add("active");
+    els.perspHK.classList.remove("active");
+    render();
+  });
+  ["input","change"].forEach(evt => {
+    els.format.addEventListener(evt, () => {
+      const def = { EU: "1.94", HK: "0.94", Malay: "0.87", Indo: "1.42", US: "+145", Frac: "4/5" };
+      els.oddsValue.value = def[els.format.value] || "1.94";
+      render();
+    });
+    els.oddsValue.addEventListener(evt, render);
+    els.amount.addEventListener(evt, render);
+  });
+}
+function init() {
+  els.format.value = "EU";
+  els.oddsValue.value = "1.94";
+  els.amount.value = "100";
+  bind();
+  render();
+}
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
