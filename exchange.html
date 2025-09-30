@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exchange Match Odds 計算器（2-Way / 3-Way + 佣金 + 一鍵綠化 + 風險警示）</title>
+<style>
+/* THEME */
+:root{
+  --bg:#0f1115; --panel:#171a22; --ink:#e9eef7; --muted:#95a0b6;
+  --line:#273042; --blue:#3aa0ff; --pink:#ff6fae; --green:#33d1a0; --red:#ff6b6b; --amber:#ffd166;
+  --input:#0c0f14; --head:#121722;
+}
+:root[data-theme="light"]{
+  --bg:#f6f7fb; --panel:#ffffff; --ink:#101522; --muted:#64748b;
+  --line:#e5e7eb; --blue:#2563eb; --pink:#db2777; --green:#059669; --red:#dc2626; --amber:#d97706;
+  --input:#f3f4f6; --head:#f8fafc;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.55}
+.wrap{max-width:1200px;margin:0 auto;padding:18px}
+h1{margin:10px 0 2px;font-weight:800}
+.sub{color:var(--muted);font-size:14px;margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 8px 24px rgb(0 0 0 / .08)}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.right{margin-left:auto}
+label.small{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+input,select,button{border:1px solid var(--line);background:var(--input);color:var(--ink);border-radius:10px;padding:10px 12px;outline:none}
+input[type=number]{width:120px}
+input[type=text]{min-width:90px}
+button{cursor:pointer;transition:.15s}
+button:hover{transform:translateY(-1px)}
+.btn{background:#1b2230;border-color:#2a3346;color:#e9eef7}
+:root[data-theme="light"] .btn{background:#0f172a;color:#fff}
+.btn-ghost{background:transparent}
+.btn-danger{background:linear-gradient(135deg,#ff5a5a,#ff7a7a);border:none;color:#fff}
+.btn-primary{background:linear-gradient(135deg,#355cff,#8e76ff);border:none;color:#fff}
+.tabs{display:flex;gap:8px;margin-bottom:12px}
+.tab{padding:10px 14px;border-radius:12px;border:1px solid var(--line);cursor:pointer;background:#101522;color:#cdd6ea}
+:root[data-theme="light"] .tab{background:#f1f5f9;color:#1f2937}
+.tab.active{background:#1a2240;color:#fff;border-color:#44507a}
+:root[data-theme="light"] .tab.active{background:#0f172a;color:#fff;border-color:#0f172a}
+.grid{overflow:auto}
+table{width:100%;border-collapse:separate;border-spacing:0}
+thead th{position:sticky;top:0;background:var(--head);color:#6b7280;font-weight:700;font-size:13px;text-align:left;padding:10px;border-bottom:1px solid var(--line);z-index:1}
+tbody td{padding:8px 10px;border-bottom:1px dashed #223047;vertical-align:middle}
+:root[data-theme="light"] tbody td{border-bottom:1px dashed #e5e7eb}
+tr:last-child td{border-bottom:0}
+.num{font-variant-numeric:tabular-nums}
+.pl.pos{color:var(--green);font-weight:800}
+.pl.neg{color:var(--red);font-weight:800}
+.badge{display:inline-block;padding:3px 8px;border-radius:999px;font-size:12px}
+.badge.back{background:#13253a;color:#8fc5ff;border:1px solid #29486f}
+.badge.lay{background:#341f2a;color:#ff9dc1;border:1px solid #5d2a3f}
+.help{color:var(--muted);font-size:13px}
+.results{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px}
+.box{background:#111621;border:1px solid var(--line);border-radius:12px;padding:12px}
+:root[data-theme="light"] .box{background:#f8fafc}
+.box h4{margin:0 0 6px;color:#6b7280;font-size:13px}
+.big{font-size:22px;font-weight:800}
+hr{border:none;border-top:1px solid var(--line);margin:14px 0}
+footer{color:#97a3bb;font-size:12px;margin-top:10px}
+kbd{background:#0c0f14;border:1px solid #2a3346;border-bottom-color:#1f2736;border-radius:6px;padding:1px 6px}
+@media (max-width:640px){input[type=number]{width:100%}}
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.section-title{margin:18px 0 10px;font-weight:800}
+.warning{background:#2a1b1b;border:1px solid #512b2b;color:#ffdada;border-radius:12px;padding:12px}
+.warning h4{margin:0 0 6px;color:#ffb4b4}
+.ok{background:#15271f;border:1px solid #1f3a2a;color:#c6f6d5;border-radius:12px;padding:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Exchange Match Odds 計算器</h1>
+  <div class="sub">支援 <b>2-Way</b>（兩方勝負）與 <b>3-Way</b>（主/和/客），可混合多筆 Back/Lay。含「一鍵全盤綠化」與「對沖風險警示」。</div>
+
+  <div class="card">
+    <!-- 先放 2/3-Way Tabs（你要求 tabs 優先顯示） -->
+    <div class="tabs">
+      <div class="tab active" data-mode="2">2-Way（兩方）</div>
+      <div class="tab" data-mode="3">3-Way（三方）</div>
+    </div>
+
+    <!-- 再放 佣金/格式/主題 -->
+    <div class="row">
+      <div><label class="small">佣金率（%）</label><input id="rate" type="number" value="5" min="0" step="0.01"></div>
+      <div><label class="small">小數位數</label><input id="dp" type="number" value="2" min="0" max="6"></div>
+      <div>
+        <label class="small">四捨五入</label>
+        <select id="roundMode">
+          <option value="round">四捨五入</option>
+          <option value="floor">無條件捨去</option>
+          <option value="ceil">無條件進位</option>
+          <option value="trunc">截斷</option>
+        </select>
+      </div>
+      <div>
+        <label class="small">幣別符號</label>
+        <input id="currency" type="text" value="NT$">
+      </div>
+      <div>
+        <label class="small">責任額提醒門檻</label>
+        <input id="liabThreshold" type="number" value="10000" min="0" step="1">
+      </div>
+      <div class="right row">
+        <button class="btn" id="theme">切換主題</button>
+        <button class="btn-ghost" id="add">新增注單</button>
+        <button class="btn-danger" id="clear">全部清空</button>
+      </div>
+    </div>
+
+    <div class="help" style="margin-top:6px">Back = 買進／支持；Lay = 賣出／反向。十進制賠率（已含本金）。
+      <span class="code">Back 淨利 = stake × (odds − 1)</span>；
+      <span class="code">Lay 責任額 = stake × (odds − 1)</span>；Lay 猜對（未發生）賺 <span class="code">stake</span>。
+    </div>
+
+    <hr>
+
+    <!-- 主表格 -->
+    <div class="grid">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>類型</th>
+            <th>選項</th>
+            <th>賠率</th>
+            <th>投注額</th>
+            <th>結果（此選項是否發生）</th>
+            <th>單筆損益 P/L</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+
+    <!-- 結果面板 -->
+    <div id="outcomes" class="results"></div>
+
+    <!-- 風險警示 -->
+    <div id="warnings" class="warning" style="display:none">
+      <h4>對沖風險警示</h4>
+      <ul id="warnList" style="margin:0;padding-left:18px"></ul>
+    </div>
+    <div id="warningsOk" class="ok" style="display:none">
+      目前沒有明顯風險訊號。
+    </div>
+
+    <hr>
+
+    <!-- 一鍵全盤綠化 -->
+    <div class="section-title">一鍵全盤綠化（Auto Green-up）</div>
+    <div class="help">輸入每個結果的「可成交對沖賠率」，按下一鍵綠化，系統會自動計算要在哪些結果上補 Back / Lay 以及注額，使所有結果的淨損益盡量相等（含佣金）。</div>
+
+    <div id="greenInputs" class="row" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn-primary" id="autoGreen">一鍵全盤綠化（建議對沖）</button>
+      <button class="btn-ghost" id="applyGreen" disabled>套用建議到表格</button>
+    </div>
+    <div id="greenOutput" class="results"></div>
+
+    <hr>
+
+    <!-- 單一對沖工具（保留） -->
+    <div class="section-title">單一對沖（快速）</div>
+    <div class="help">選擇一個結果，輸入對沖賠率與類型，計算等額對沖注額（含佣金）。</div>
+    <div class="row" style="margin-top:8px">
+      <div><label class="small">選項</label><select id="hedgeSelection"></select></div>
+      <div><label class="small">對沖類型</label><select id="hedgeType"><option value="Back">Back</option><option value="Lay">Lay</option></select></div>
+      <div><label class="small">對沖賠率</label><input id="hedgeOdds" type="number" step="0.01" min="1" placeholder="例如 2.10"></div>
+      <div class="right row">
+        <button class="btn" id="calcHedge">計算對沖注額</button>
+        <button class="btn-ghost" id="quick">忽略佣金的快捷公式</button>
+      </div>
+    </div>
+    <div id="hedgeOutput" class="results"></div>
+
+    <footer style="margin-top:12px">佣金按「正的市場小計」收取：<span class="code">commission = max(subtotal, 0) × 佣金率</span>；淨額 <span class="code">= subtotal − commission</span>。最終以平台規則為準。</footer>
+  </div>
+</div>
+
+<script>
+const rowsEl = document.getElementById('rows');
+const outcomesEl = document.getElementById('outcomes');
+const rateEl = document.getElementById('rate');
+const dpEl = document.getElementById('dp');
+const roundModeEl = document.getElementById('roundMode');
+const currencyEl = document.getElementById('currency');
+const liabThresholdEl = document.getElementById('liabThreshold');
+const themeBtn = document.getElementById('theme');
+const warningsBox = document.getElementById('warnings');
+const warningsOk = document.getElementById('warningsOk');
+const warnList = document.getElementById('warnList');
+let mode = 2; // default 2-way
+
+// Utils ----------------------------------------------------------------
+function roundByMode(val, dp, mode){
+  const f = Math.pow(10, dp);
+  let x = val * f;
+  switch(mode){
+    case 'floor': x = Math.floor(x); break;
+    case 'ceil':  x = Math.ceil(x);  break;
+    case 'trunc': x = x < 0 ? Math.ceil(x) : Math.trunc(x); break;
+    default: x = Math.round(x); // 四捨五入
+  }
+  return x / f;
+}
+function fmt(n){
+  const dp = +dpEl.value||0;
+  const m  = roundModeEl.value || 'round';
+  const v  = roundByMode((isFinite(n)? n:0), dp, m).toFixed(dp);
+  const cur = currencyEl.value || '';
+  return cur ? cur + v : v;
+}
+function fmtNum(n){
+  const dp = +dpEl.value||0;
+  const m  = roundModeEl.value || 'round';
+  return roundByMode((isFinite(n)? n:0), dp, m).toFixed(dp);
+}
+function renumber(){ [...rowsEl.children].forEach((tr,i)=> tr.children[0].textContent=i+1); }
+
+function selectionOptions(){
+  return (mode===2)
+    ? `<option value="A">A（左側）</option><option value="B">B（右側）</option>`
+    : `<option value="H">主隊 H</option><option value="D">和局 D</option><option value="A">客隊 A</option>`;
+}
+function outcomeList(){
+  return (mode===2)
+    ? [{key:'A', name:'A 勝'}, {key:'B', name:'B 勝'}]
+    : [{key:'H', name:'主勝 H'}, {key:'D', name:'和局 D'}, {key:'A', name:'客勝 A'}];
+}
+
+// Bets & P/L ------------------------------------------------------------
+function addRow(data={}){
+  const tr = document.createElement('tr');
+
+  const tdIdx=document.createElement('td'); tdIdx.className='num'; tdIdx.textContent=rowsEl.children.length+1; tr.appendChild(tdIdx);
+
+  const tdType=document.createElement('td');
+  const selType=document.createElement('select');
+  selType.innerHTML = `<option value="Back">Back</option><option value="Lay">Lay</option>`;
+  selType.value=data.type||'Back'; tdType.appendChild(selType); tr.appendChild(tdType);
+
+  const tdSel=document.createElement('td');
+  const selSel=document.createElement('select'); selSel.innerHTML=selectionOptions();
+  selSel.value=data.selection || (mode===2?'A':'H'); tdSel.appendChild(selSel); tr.appendChild(tdSel);
+
+  const tdOdds=document.createElement('td');
+  const inpOdds=document.createElement('input'); inpOdds.type='number'; inpOdds.step='0.01'; inpOdds.min='1'; inpOdds.value=data.odds??'';
+  tdOdds.appendChild(inpOdds); tr.appendChild(tdOdds);
+
+  const tdStake=document.createElement('td');
+  const inpStake=document.createElement('input'); inpStake.type='number'; inpStake.step='0.01'; inpStake.min='0'; inpStake.value=data.stake??'';
+  tdStake.appendChild(inpStake); tr.appendChild(tdStake);
+
+  const tdRes=document.createElement('td');
+  const selRes=document.createElement('select');
+  selRes.innerHTML = `<option value="won">選項發生（贏）</option><option value="notwon">選項不發生（輸或非該結果）</option>`;
+  selRes.value=data.result||'won'; tdRes.appendChild(selRes); tr.appendChild(tdRes);
+
+  const tdPL=document.createElement('td'); tdPL.className='num pl'; tdPL.textContent='0.00'; tr.appendChild(tdPL);
+
+  const tdDel=document.createElement('td');
+  const delBtn=document.createElement('button'); delBtn.textContent='刪除'; delBtn.className='btn-ghost';
+  delBtn.onclick=()=>{ tr.remove(); renumber(); recalc(); refreshHedgeSelections(); };
+  tdDel.appendChild(delBtn); tr.appendChild(tdDel);
+
+  [selType, selSel, inpOdds, inpStake, selRes, rateEl, dpEl, roundModeEl, currencyEl, liabThresholdEl].forEach(el=> el.addEventListener('input', recalc));
+  rowsEl.appendChild(tr);
+  recalc();
+  refreshHedgeSelections();
+}
+
+function rowPLPreview(tr){
+  const type = tr.querySelectorAll('select')[0].value;
+  const selection = tr.querySelectorAll('select')[1].value;
+  const odds = parseFloat(tr.querySelectorAll('input')[0].value);
+  const stake = parseFloat(tr.querySelectorAll('input')[1].value);
+  const result = tr.querySelectorAll('select')[2].value;
+  if(!isFinite(odds)||!isFinite(stake)||odds<=1||stake<=0) return 0;
+  const diff = odds - 1;
+  if(type==='Back') return (result==='won') ? stake*diff : -stake;
+  else return (result==='won') ? -(stake*diff) : +stake;
+}
+
+function marketPLForOutcome(outcomeKey, extraBets=[]){
+  let subtotal = 0;
+  function apply(type, selection, odds, stake, outcomeKey){
+    const diff = odds - 1;
+    const isOutcome = (selection === outcomeKey);
+    let pl = 0;
+    if(type==='Back'){
+      pl = isOutcome ? stake*diff : -stake;
+    }else{
+      pl = isOutcome ? -(stake*diff) : +stake;
+    }
+    return pl;
+  }
+  // existing rows
+  [...rowsEl.children].forEach(tr=>{
+    const type = tr.querySelectorAll('select')[0].value;
+    const selection = tr.querySelectorAll('select')[1].value;
+    const odds = parseFloat(tr.querySelectorAll('input')[0].value);
+    const stake = parseFloat(tr.querySelectorAll('input')[1].value);
+    if(!isFinite(odds)||!isFinite(stake)||odds<=1||stake<=0) return;
+    subtotal += apply(type, selection, odds, stake, outcomeKey);
+  });
+  // extras
+  extraBets.forEach(b=>{
+    if(b.stake>0) subtotal += apply(b.type, b.selection, b.odds, b.stake, outcomeKey);
+  });
+
+  const rate = Math.max(0, parseFloat(rateEl.value)||0)/100;
+  const commission = subtotal>0 ? subtotal*rate : 0;
+  const net = subtotal - commission;
+  return {subtotal, commission, net};
+}
+
+function recalc(){
+  // per-row preview
+  [...rowsEl.children].forEach(tr=>{
+    const pl = rowPLPreview(tr);
+    const cell = tr.querySelector('.pl');
+    cell.textContent = fmt(pl);
+    cell.classList.toggle('pos', pl>0);
+    cell.classList.toggle('neg', pl<0);
+  });
+
+  // outcomes
+  const list = outcomeList();
+  outcomesEl.innerHTML='';
+  const nets = {};
+  list.forEach(o=>{
+    const r = marketPLForOutcome(o.key);
+    nets[o.key] = r.net;
+    const div = document.createElement('div'); div.className='box';
+    div.innerHTML = `<h4>${o.name}</h4>
+      <div class="big num" style="margin-bottom:4px; ${r.net>=0?'color:var(--green)':'color:var(--red)'}">${fmtNum(r.net)}</div>
+      <div class="help">小計：<b class="num">${fmtNum(r.subtotal)}</b><br>佣金：<b class="num">${fmtNum(r.commission)}</b></div>`;
+    outcomesEl.appendChild(div);
+  });
+
+  // warnings
+  buildWarnings(nets);
+}
+
+// Theme toggle
+document.getElementById('theme').onclick = ()=>{
+  const root = document.documentElement;
+  const cur = root.getAttribute('data-theme') || 'dark';
+  root.setAttribute('data-theme', cur==='dark' ? 'light' : 'dark');
+};
+
+// Tabs
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    mode = +(t.dataset.mode);
+    // rebuild selection dropdowns
+    [...rowsEl.children].forEach(tr=>{
+      const selSel = tr.querySelectorAll('select')[1];
+      const old = selSel.value;
+      selSel.innerHTML = selectionOptions();
+      selSel.value = (mode===2 && (old==='A'||old==='B')) ? old :
+                     (mode===3 && (old==='H'||old==='D'||old==='A')) ? old :
+                     (mode===2?'A':'H');
+    });
+    refreshHedgeSelections();
+    buildGreenInputs();
+    recalc();
+  };
+});
+
+// Buttons
+document.getElementById('add').onclick = ()=> addRow();
+document.getElementById('clear').onclick = ()=>{ rowsEl.innerHTML=''; recalc(); refreshHedgeSelections(); };
+
+// Hedge (single) -------------------------------------------------------
+function refreshHedgeSelections(){
+  const sel = document.getElementById('hedgeSelection');
+  const opts = (mode===2) ? ['A','B'] : ['H','D','A'];
+  const names = {A:'A（客）',B:'B（主）',H:'主隊 H',D:'和局 D'};
+  const cur = sel.value;
+  sel.innerHTML = opts.map(k=>`<option value="${k}">${names[k]||k}</option>`).join('');
+  if(opts.includes(cur)) sel.value = cur;
+}
+refreshHedgeSelections();
+
+function rootSolve(fn, lo, hi, maxIter=60, eps=1e-7){
+  let flo = fn(lo), fhi = fn(hi);
+  let iter=0;
+  while(flo*fhi>0 && iter<20){
+    hi *= 2; fhi = fn(hi); iter++;
+    if(Math.abs(fhi) < eps) break;
+  }
+  for(let i=0;i<maxIter;i++){
+    const mid = (lo+hi)/2;
+    const fmid = fn(mid);
+    if(Math.abs(fmid) < eps) return mid;
+    if(flo*fmid <= 0){ hi = mid; fhi = fmid; }
+    else { lo = mid; flo = fmid; }
+  }
+  return (lo+hi)/2;
+}
+
+function calcHedge(){
+  const selection = document.getElementById('hedgeSelection').value;
+  const hedgeType = document.getElementById('hedgeType').value;
+  const hedgeOdds = parseFloat(document.getElementById('hedgeOdds').value);
+  if(!(hedgeOdds>1)){ alert('請輸入對沖賠率 (>1)'); return; }
+
+  function diff(stake){
+    const extra = [{type:hedgeType, selection, odds:hedgeOdds, stake:stake}];
+    const win = marketPLForOutcome(selection, extra).net;
+    const otherKey = outcomeList().find(o=>o.key!==selection).key;
+    const lose = marketPLForOutcome(otherKey, extra).net;
+    return win - lose;
+  }
+  const stake = rootSolve(diff, 0, 1);
+  const extra = [{type:hedgeType, selection, odds:hedgeOdds, stake:stake}];
+  const winR = marketPLForOutcome(selection, extra);
+  const otherKey = outcomeList().find(o=>o.key!==selection).key;
+  const loseR = marketPLForOutcome(otherKey, extra);
+
+  const out = document.getElementById('hedgeOutput');
+  out.innerHTML = '';
+  const box = document.createElement('div'); box.className='box';
+  box.innerHTML = `<h4>建議對沖注額</h4>
+    <div class="big">${hedgeType} @ ${hedgeOdds.toFixed(2)}，Stake ≈ <b>${fmtNum(stake)}</b></div>
+    <div class="help">對沖後（含佣金）：
+      <br>${selection} 發生 → 淨損益：<b>${fmtNum(winR.net)}</b>
+      <br>非 ${selection} → 淨損益：<b>${fmtNum(loseR.net)}</b>
+    </div>`;
+  out.appendChild(box);
+}
+document.getElementById('calcHedge').onclick = calcHedge;
+
+// Quick formula (ignore commission)
+document.getElementById('quick').onclick = ()=>{
+  const selection = document.getElementById('hedgeSelection').value;
+  let first = null;
+  [...rowsEl.children].forEach(tr=>{
+    const sel = tr.querySelectorAll('select')[1].value;
+    if(sel===selection && !first){
+      first = {
+        type: tr.querySelectorAll('select')[0].value,
+        odds: parseFloat(tr.querySelectorAll('input')[0].value),
+        stake: parseFloat(tr.querySelectorAll('input')[1].value)
+      };
+    }
+  });
+  const o = document.getElementById('hedgeOdds').value;
+  const out = document.getElementById('hedgeOutput');
+  out.innerHTML = '';
+  const box = document.createElement('div'); box.className='box';
+  if(!first || !(o>1)){
+    box.innerHTML = `<h4>忽略佣金的快捷公式</h4>
+      <div class="help">Back→Lay：<span class="code">L = S × (Ob / Ol)</span>；等額利潤 = <span class="code">L − S</span><br>
+      Lay→Back：<span class="code">B = S × (Ol / Ob)</span>；等額利潤 = <span class="code">S − B</span></div>`;
+  }else{
+    const Ob = first.odds, S = first.stake, Ol = parseFloat(o);
+    let formula = '';
+    if(first.type==='Back'){
+      const L = S * (Ob/Ol);
+      formula = `已下 <b>Back ${Ob}</b> / Stake <b>${fmtNum(S)}</b>；若以 <b>Lay ${Ol}</b> 對沖：<br>
+      建議 Lay Stake <b>${fmtNum(L)}</b>；等額毛利 ≈ <b>${fmtNum(L - S)}</b>`;
+    }else{
+      const B = S * (Ol/Ob);
+      formula = `已下 <b>Lay ${Ob}</b> / Stake <b>${fmtNum(S)}</b>；若以 <b>Back ${Ol}</b> 對沖：<br>
+      建議 Back Stake <b>${fmtNum(B)}</b>；等額毛利 ≈ <b>${fmtNum(S - B)}</b>`;
+    }
+    box.innerHTML = `<h4>忽略佣金的快捷公式</h4><div>${formula}</div>`;
+  }
+  out.appendChild(box);
+};
+
+// GREEN-UP (Auto) ------------------------------------------------------
+function buildGreenInputs(){
+  const box = document.getElementById('greenInputs');
+  box.innerHTML = '';
+  const list = outcomeList();
+  list.forEach(o=>{
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `<label class="small">${o.name} 對沖賠率</label>
+      <input type="number" class="green-odds" data-key="${o.key}" value="2.00" min="1" step="0.01">`;
+    box.appendChild(wrap);
+  });
+}
+buildGreenInputs();
+
+let greenPlan = null; // store last plan to apply
+document.getElementById('autoGreen').onclick = ()=>{
+  const list = outcomeList();
+  const oddsMap = {};
+  document.querySelectorAll('.green-odds').forEach(inp=>{
+    const v = parseFloat(inp.value);
+    oddsMap[inp.dataset.key] = (v>1? v : 2.00);
+  });
+
+  // iterative balancing using small steps (含佣金)
+  const steps = 28;
+  const stepScale = 0.6; // diminishing
+  const backStake = {}, layStake = {};
+  list.forEach(o=>{ backStake[o.key]=0; layStake[o.key]=0; });
+
+  for(let it=0; it<steps; it++){
+    // current nets without extras
+    const nets = {}; list.forEach(o=> nets[o.key] = marketPLForOutcome(o.key, []).net);
+    const avg = (list.reduce((s,o)=> s+nets[o.key], 0))/list.length;
+
+    list.forEach(o=>{
+      const key = o.key;
+      const d = avg - nets[key]; // need to raise (positive) or lower (negative)
+      const O = list.length;
+      const odds = oddsMap[key];
+      const denom = (odds - 1) + (O - 1); // rough impact
+      const base = Math.abs(d) / Math.max(denom, 1e-6) * (stepScale ** (it/8));
+      if(d > 0){
+        // raise this outcome → Back a bit
+        backStake[key] += base;
+      }else if(d < 0){
+        // lower this outcome → Lay a bit
+        layStake[key] += base;
+      }
+    });
+  }
+
+  // Build plan: convert to extra bets
+  const extras = [];
+  list.forEach(o=>{
+    const k = o.key, od = oddsMap[k];
+    if(backStake[k] > 0.01) extras.push({type:'Back', selection:k, odds:od, stake:backStake[k]});
+    if(layStake[k]  > 0.01) extras.push({type:'Lay',  selection:k, odds:od, stake:layStake[k]});
+  });
+
+  // Evaluate result
+  const res = list.map(o=>({ key:o.key, name:o.name, ...marketPLForOutcome(o.key, extras) }));
+  const netsAfter = res.map(r=>r.net);
+  const maxDiff = Math.max(...netsAfter) - Math.min(...netsAfter);
+
+  const out = document.getElementById('greenOutput');
+  out.innerHTML = '';
+  const planBox = document.createElement('div'); planBox.className='box';
+  planBox.innerHTML = `<h4>建議對沖單（共 ${extras.length} 筆）</h4>
+    <div class="help">綠化後各結果的淨損益差距（max−min）≈ <b class="num">${fmtNum(maxDiff)}</b></div>`;
+  out.appendChild(planBox);
+
+  // list bets
+  if(extras.length===0){
+    planBox.innerHTML += `<div class="help">目前已幾乎等額，無需新增對沖。</div>`;
+  }else{
+    const ul = document.createElement('ul'); ul.style.margin='8px 0 0'; ul.style.paddingLeft='18px';
+    extras.forEach((b,i)=>{
+      const li = document.createElement('li');
+      li.innerHTML = `${i+1}. <b>${b.type}</b> ${b.selection} @ ${b.odds.toFixed(2)} → Stake <b class="num">${fmtNum(b.stake)}</b>`;
+      ul.appendChild(li);
+    });
+    planBox.appendChild(ul);
+  }
+
+  // show outcomes after
+  res.forEach(r=>{
+    const b = document.createElement('div'); b.className='box';
+    b.innerHTML = `<h4>${r.name}（綠化後）</h4>
+      <div class="big num" style="margin-bottom:4px; ${r.net>=0?'color:var(--green)':'color:var(--red)'}">${fmtNum(r.net)}</div>
+      <div class="help">小計：<b class="num">${fmtNum(r.subtotal)}</b><br>佣金：<b class="num">${fmtNum(r.commission)}</b></div>`;
+    out.appendChild(b);
+  });
+
+  greenPlan = extras;
+  document.getElementById('applyGreen').disabled = extras.length===0;
+};
+
+document.getElementById('applyGreen').onclick = ()=>{
+  if(!greenPlan || greenPlan.length===0) return;
+  greenPlan.forEach(b=> addRow(b));
+  greenPlan = null;
+  document.getElementById('applyGreen').disabled = true;
+  recalc();
+};
+
+// Warnings -------------------------------------------------------------
+function buildWarnings(nets){
+  const items = [];
+  const threshold = parseFloat(liabThresholdEl.value)||0;
+
+  // 未覆蓋結果（負數）
+  Object.entries(nets).forEach(([k,v])=>{
+    if(v < 0) items.push(`結果 <b>${k}</b> 的淨損益為負 (${fmtNum(v)})，可能尚未完全對沖。`);
+  });
+
+  // 責任額過大
+  [...rowsEl.children].forEach((tr,i)=>{
+    const type = tr.querySelectorAll('select')[0].value;
+    if(type !== 'Lay') return;
+    const odds = parseFloat(tr.querySelectorAll('input')[0].value);
+    const stake = parseFloat(tr.querySelectorAll('input')[1].value);
+    if(!(odds>1 && stake>0)) return;
+    const liab = stake * (odds - 1);
+    if(liab > threshold) items.push(`第 ${i+1} 筆 Lay 的責任額 ${fmtNum(liab)} 超過門檻 ${fmtNum(threshold)}。`);
+  });
+
+  // 佣金侵蝕（前正後負）
+  const pre = {}; const post = nets;
+  outcomeList().forEach(o=>{
+    // subtotal (no commission)
+    let sub = 0;
+    [...rowsEl.children].forEach(tr=>{
+      const type = tr.querySelectorAll('select')[0].value;
+      const selection = tr.querySelectorAll('select')[1].value;
+      const odds = parseFloat(tr.querySelectorAll('input')[0].value);
+      const stake = parseFloat(tr.querySelectorAll('input')[1].value);
+      if(!(odds>1 && stake>0)) return;
+      const diff = odds-1;
+      const isOutcome = (selection===o.key);
+      sub += (type==='Back') ? (isOutcome ? stake*diff : -stake) : (isOutcome ? -(stake*diff) : +stake);
+    });
+    pre[o.key] = sub;
+    if(sub>0 && post[o.key] < 0){
+      items.push(`結果 <b>${o.key}</b>：未扣佣為正 (${fmtNum(sub)}), 扣佣後變負 (${fmtNum(post[o.key])}) — 注意佣金侵蝕。`);
+    }
+  });
+
+  // 不平衡度提示
+  const arr = Object.values(nets);
+  if(arr.length>1){
+    const spread = Math.max(...arr) - Math.min(...arr);
+    if(spread > 0.01) items.push(`各結果淨損益差距為 ${fmtNum(spread)}，尚未完全等額。`);
+  }
+
+  // 顯示
+  if(items.length){
+    warningsBox.style.display = '';
+    warningsOk.style.display = 'none';
+    warnList.innerHTML = items.map(x=>`<li>${x}</li>`).join('');
+  }else{
+    warningsBox.style.display = 'none';
+    warningsOk.style.display = '';
+  }
+}
+
+// Initial
+addRow();
+buildGreenInputs();
+</script>
+</body>
+</html>
