@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bookmaker（Indian/Decimal）簡易計算器 · Lite+ (contrast + floating theme)</title>
+  <style>
+    :root{
+      --bg:#0f1117; --panel:#151a23; --card:#10141c; --line:#223047; --text:#e9eef5; --muted:#9aa3b2;
+      --thead:#0f1522; --pos:#34d399; --neg:#f87171; --blue:#60a5fa; --pink:#f472b6; --tipbg:#0c1422;
+      --chip-active-bg:#17223b; --chip-active-fg:#ffffff;
+      --tip-title:#cfe0ff;
+      --pill-b-bg:#0f1f39; --pill-b-fg:#cfe5ff;
+      --pill-l-bg:#331a2f; --pill-l-fg:#ffd0e4;
+    }
+    [data-theme="light"]{
+      --bg:#f6f7fb; --panel:#ffffff; --card:#ffffff; --line:#e5e7eb; --text:#111827; --muted:#667085;
+      --thead:#eef2f7; --pos:#059669; --neg:#dc2626; --blue:#2563eb; --pink:#db2777; --tipbg:#f3f7ff;
+      --chip-active-bg:#1f2a44; --chip-active-fg:#ffffff;
+      --tip-title:#1f2a44;
+      --pill-b-bg:#1f2a44; --pill-b-fg:#e7efff;
+      --pill-l-bg:#5a2447; --pill-l-fg:#ffe1ef;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);
+      font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; line-height:1.55;}
+    header{padding:20px 16px 4px}
+    h1{margin:0 0 10px;font-weight:800;letter-spacing:.2px}
+    .wrap{max-width:1100px;margin:0 auto;padding:10px 16px 30px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 10px 24px rgb(0 0 0 / .08)}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .right{margin-left:auto}
+    label.small{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+    input,select,button{border-radius:10px;padding:10px 12px;border:1px solid var(--line);background:transparent;color:var(--text);outline:none}
+    input[type="number"]{width:120px}
+    button{cursor:pointer;background:#1a2233;transition:.15s;border-color:#2a3348;color:#ffffff}
+    [data-theme="light"] button{background:#e8ecf8;color:#1f2a44;border-color:#d6dbea}
+    button:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgb(0 0 0 / .12)}
+    .btn-ghost{background:transparent}
+    .btn-danger{background:linear-gradient(135deg,#ff5a5a,#ff7a7a);border:none;color:#fff}
+    .pill{display:inline-flex;gap:6px;align-items:center;padding:4px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px;font-weight:700}
+    .pill.b{background:var(--pill-b-bg); color:var(--pill-b-fg)}
+    .pill.l{background:var(--pill-l-bg); color:var(--pill-l-fg)}
+    .switch{display:inline-flex;border-radius:999px;border:1px solid var(--line);overflow:hidden}
+    .switch button{background:transparent;border:0;padding:8px 14px;color:var(--text)}
+    .switch button.active{background:var(--chip-active-bg); color:var(--chip-active-fg)}
+    table{width:100%;border-collapse:separate;border-spacing:0;table-layout:auto}
+    thead th{position:sticky;top:0;z-index:1;background:var(--thead);color:#7b8aab;font-weight:700;text-align:left;font-size:13px;padding:10px;border-bottom:1px solid var(--line)}
+    [data-theme="light"] thead th{color:#44506a}
+    tbody td{padding:8px 10px;border-bottom:1px dashed var(--line);vertical-align:middle}
+    tr:last-child td{border-bottom:0}
+    .grid{overflow:auto;border:1px solid var(--line);border-radius:12px}
+    .num{font-variant-numeric:tabular-nums}
+    .tar{text-align:right}
+    .sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+    .sum.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+    .box h4{margin:0 0 6px;color:#7b8aab;font-size:13px}
+    [data-theme="light"] .box h4{color:#5b6b88}
+    .val{font-size:22px;font-weight:800}
+    .pos{color:var(--pos)} .neg{color:var(--neg)}
+    /* TIP 卡片化 */
+    details{margin-top:12px;border-radius:12px;border:1px solid var(--line);background:var(--tipbg);overflow:hidden}
+    details summary{cursor:pointer;color:var(--tip-title);font-weight:800;display:flex;align-items:center;gap:8px;padding:10px 12px;background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.06));}
+    details .content{padding:10px 12px;color:var(--text);border-top:1px dashed var(--line)}
+    .tipdot{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:999px;background:#1e2b45;color:#cfe0ff;border:1px solid #2a3c66;font-size:12px}
+    [data-theme="light"] .tipdot{background:#cfe0ff;color:#1f2a44;border-color:#9db3d8}
+    /* 損益欄寬與上下雙行表頭 */
+    .th-col{display:flex;flex-direction:column;line-height:1.15}
+    .th-col em{font-style:normal;color:var(--muted);font-size:12px}
+    .pl-col{min-width:120px}
+
+    /* 下拉選單的 Option 對比（不同瀏覽器支援度略有差異，但大多數 Chromium/Firefox OK） */
+    select option { background: var(--panel); color: var(--text); }
+    select option:checked, select option:hover { background: var(--chip-active-bg); color: var(--chip-active-fg); }
+
+    /* 浮動主題切換按鈕（右上角固定） */
+    #theme-fab{
+      position: fixed; top: 12px; right: 12px; z-index: 1000;
+      background: var(--chip-active-bg); color: var(--chip-active-fg);
+      border: 1px solid var(--line); border-radius: 999px;
+      padding: 10px 14px; box-shadow: 0 10px 18px rgb(0 0 0 / .25);
+    }
+    #theme-fab:hover{ transform: translateY(-1px); }
+
+    @media (max-width:880px){
+      .sum,.sum.two{grid-template-columns:1fr}
+      input[type="number"]{width:100%}
+      .pl-col{min-width:100px}
+    }
+  </style>
+</head>
+<body>
+  <!-- 浮動主題切換 -->
+  <button id="theme-fab" aria-label="切換主題">🌙 切換深色</button>
+
+  <header class="wrap">
+    <h1>Bookmaker 簡易計算器（Indian / Decimal）</h1>
+    <div class="row">
+      <div>
+        <label class="small">運動 / 市場類型</label>
+        <select id="sport">
+          <option value="custom">自訂 / 顯示全部</option>
+          <option value="football_1x2">足球 1X2（3-Way）</option>
+          <option value="football_ml">足球 Moneyline（2-Way）</option>
+          <option value="tennis_ml">網球 Moneyline（2-Way）</option>
+          <option value="cricket_t20_odi">板球 T20 / ODI Match Winner（2-Way）</option>
+          <option value="cricket_test">板球 Test 比賽結果（3-Way）</option>
+          <option value="fancy_yesno">Fancy Bet Yes/No（2-Way）</option>
+        </select>
+      </div>
+
+      <div class="switch" role="tablist" aria-label="市場模式切換" style="margin-left:6px">
+        <button class="active" id="btn2">2-Way</button>
+        <button id="btn3">3-Way</button>
+      </div>
+      <span class="pill b">Back＝買進</span>
+      <span class="pill l">Lay＝賣出</span>
+      <div class="right row">
+        <div>
+          <label class="small">小數位數</label>
+          <input id="dp" type="number" min="0" max="4" value="2">
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap card">
+    <details>
+      <summary><span class="tipdot">TIP</span> 快速上手（點我展開）</summary>
+      <div class="content">
+        <ol>
+          <li>上方選「運動／市場類型」→ 系統自動切換 2-Way 或 3-Way。</li>
+          <li>按「新增一筆」→ 在表格輸入：<b>Back/Lay</b>、<b>你的選項</b>、<b>Indian 或 Decimal</b>、<b>Stake</b>。</li>
+          <li>右側即時看到每個結果的損益；下方顯示總損益（已加上千分位）。</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary><span class="tipdot">TIP</span> <span id="step-title">2-Way 市場 — Step by Step</span></summary>
+      <div class="content">
+        <ul>
+          <li>兩種賠率互轉：<b>Decimal = 1 + Indian/100</b>；<b>Indian = (Decimal − 1) × 100</b>。</li>
+          <li>Back 淨利 = <b>Stake × (odds − 1)</b>；Lay 責任額 = <b>Stake × (odds − 1)</b>（Bookmaker 無佣金）。</li>
+          <li>本工具「印度／十進制」可互填，會自動連動，不用另外切換模式。</li>
+        </ul>
+      </div>
+    </details>
+
+    <div class="row" style="margin:10px 0">
+      <div class="right row">
+        <div>
+          <label class="small">案例</label>
+          <select id="preset">
+            <option value="none">— 請選擇 —</option>
+            <option value="two">2-Way：主 Back 87；客 Lay 92（各 100）</option>
+            <option value="three">3-Way：主 Back 87；和 Back 450；客 Lay 92（各 100）</option>
+          </select>
+        </div>
+        <button id="add">新增一筆</button>
+        <button class="btn-danger" id="clear">全部清空</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <table>
+        <thead>
+          <tr id="th-2way">
+            <th>#</th><th>市場／隊伍</th><th>Back/Lay</th><th>你的選項</th>
+            <th>Indian</th><th>Decimal</th><th>Stake</th>
+            <th class="pl-col"><div class="th-col"><span>損益</span><em>主勝</em></div></th>
+            <th class="pl-col"><div class="th-col"><span>損益</span><em>客勝</em></div></th>
+            <th></th>
+          </tr>
+          <tr id="th-3way" style="display:none">
+            <th>#</th><th>市場／隊伍</th><th>Back/Lay</th><th>你的選項</th>
+            <th>Indian</th><th>Decimal</th><th>Stake</th>
+            <th class="pl-col"><div class="th-col"><span>損益</span><em>主勝</em></div></th>
+            <th class="pl-col"><div class="th-col"><span>損益</span><em>和局</em></div></th>
+            <th class="pl-col"><div class="th-col"><span>損益</span><em>客勝</em></div></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+
+    <div class="sum two" id="sum2">
+      <div class="box"><h4>總損益：主勝</h4><div class="val num" id="sum-h">0.00</div></div>
+      <div class="box"><h4>總損益：客勝</h4><div class="val num" id="sum-a">0.00</div></div>
+    </div>
+    <div class="sum" id="sum3" style="display:none">
+      <div class="box"><h4>總損益：主勝</h4><div class="val num" id="sum3-h">0.00</div></div>
+      <div class="box"><h4>總損益：和局</h4><div class="val num" id="sum3-d">0.00</div></div>
+      <div class="box"><h4>總損益：客勝</h4><div class="val num" id="sum3-a">0.00</div></div>
+    </div>
+  </main>
+
+  <script>
+    const $ = (s, r=document)=>r.querySelector(s);
+    const $$ = (s, r=document)=>[...r.querySelectorAll(s)];
+    const THEME_KEY='bm_lite_plus_theme';
+
+    function applyTheme(t){
+      document.documentElement.setAttribute('data-theme', t);
+      $('#theme-fab').textContent = (t==='dark') ? '☀️ 切換淺色' : '🌙 切換深色';
+    }
+    (function initTheme(){
+      const saved = localStorage.getItem(THEME_KEY) || 'light'; // 預設淺色展示對比修正
+      applyTheme(saved);
+      $('#theme-fab').onclick = () => {
+        const cur = document.documentElement.getAttribute('data-theme') || 'light';
+        const next = cur==='light' ? 'dark' : 'light';
+        localStorage.setItem(THEME_KEY, next);
+        applyTheme(next);
+      };
+    })();
+
+    function nf(dp){ return new Intl.NumberFormat('zh-Hant-TW',{ minimumFractionDigits:dp, maximumFractionDigits:dp }); }
+    function fmt(n,dp){ const v=(isFinite(n)?n:0); return nf(dp).format(v); }
+    function toDec(ind){ return 1 + (ind/100); }
+    function toInd(dec){ return (dec - 1) * 100; }
+    function renum(){ $$('#rows tr').forEach((tr,i)=> tr.children[0].textContent = i+1); }
+
+    let is3=false;
+    const dpInput = $('#dp');
+
+    function updateStepTitle(){ $('#step-title').textContent = is3 ? '3-Way 市場 — Step by Step' : '2-Way 市場 — Step by Step'; }
+
+    function row2Tpl(){ return `
+      <td class="num"></td>
+      <td><input placeholder="市場／隊伍"></td>
+      <td><select class="type"><option>Back</option><option>Lay</option></select></td>
+      <td><select class="pick"><option value="H">主勝</option><option value="A">客勝</option></select></td>
+      <td><input type="number" step="0.01" min="0" class="ind"></td>
+      <td><input type="number" step="0.01" min="1" class="dec"></td>
+      <td><input type="number" step="0.01" min="0" class="stake"></td>
+      <td class="num tar pl-h">0.00</td>
+      <td class="num tar pl-a">0.00</td>
+      <td><button class="btn-danger del">刪除</button></td>`;
+    }
+    function row3Tpl(){ return `
+      <td class="num"></td>
+      <td><input placeholder="市場／隊伍"></td>
+      <td><select class="type"><option>Back</option><option>Lay</option></select></td>
+      <td><select class="pick"><option value="H">主勝</option><option value="D">和局</option><option value="A">客勝</option></select></td>
+      <td><input type="number" step="0.01" min="0" class="ind"></td>
+      <td><input type="number" step="0.01" min="1" class="dec"></td>
+      <td><input type="number" step="0.01" min="0" class="stake"></td>
+      <td class="num tar pl-h">0.00</td>
+      <td class="num tar pl-d">0.00</td>
+      <td class="num tar pl-a">0.00</td>
+      <td><button class="btn-danger del">刪除</button></td>`;
+    }
+    function newRow(data={}){
+      const tr=document.createElement('tr');
+      tr.innerHTML = (is3?row3Tpl():row2Tpl());
+      $('#rows').appendChild(tr);
+      patchRow(tr,data);
+      bindRow(tr);
+      renum(); recalc();
+    }
+    function patchRow(tr,d){
+      if(!d) return;
+      tr.querySelector('.type').value = d.type || 'Back';
+      tr.querySelector('.pick').value = d.pick || 'H';
+      if(d.ind!=null) tr.querySelector('.ind').value = d.ind;
+      if(d.dec!=null) tr.querySelector('.dec').value = d.dec;
+      if(d.stake!=null) tr.querySelector('.stake').value = d.stake;
+    }
+    function bindRow(tr){
+      const ind=tr.querySelector('.ind'), dec=tr.querySelector('.dec'), stake=tr.querySelector('.stake');
+      let lock=false;
+      ind.addEventListener('input',()=>{ if(lock) return; lock=true; const v=parseFloat(ind.value); if(isFinite(v)) dec.value=(toDec(v)).toFixed(2); lock=false; recalc(); });
+      dec.addEventListener('input',()=>{ if(lock) return; lock=true; const v=parseFloat(dec.value); if(isFinite(v)) ind.value=(toInd(v)).toFixed(2); lock=false; recalc(); });
+      [tr.querySelector('.type'), tr.querySelector('.pick'), ind, dec, stake].forEach(el=> el.addEventListener('input', recalc));
+      tr.querySelector('.del').onclick=()=>{ tr.remove(); renum(); recalc(); };
+    }
+    function recalc(){
+      const dpn = parseInt(dpInput.value)||0;
+      let sumH=0,sumD=0,sumA=0;
+      $$('#rows tr').forEach(tr=>{
+        const type=tr.querySelector('.type').value;
+        const pick=tr.querySelector('.pick').value;
+        const ind=parseFloat(tr.querySelector('.ind').value);
+        const stake=parseFloat(tr.querySelector('.stake').value);
+        const cells={h:tr.querySelector('.pl-h'), d:tr.querySelector('.pl-d'), a:tr.querySelector('.pl-a')};
+        if(!(isFinite(ind)&&isFinite(stake))){
+          if(cells.h) cells.h.textContent='0.00';
+          if(cells.d) cells.d.textContent='0.00';
+          if(cells.a) cells.a.textContent='0.00';
+          return;
+        }
+        const unit = stake*(ind/100);
+        let plH=0,plD=0,plA=0;
+        if(type==='Back'){
+          plH = (pick==='H') ? unit : -stake;
+          if(is3) plD = (pick==='D') ? unit : -stake;
+          plA = (pick==='A') ? unit : -stake;
+        }else{
+          plH = (pick==='H') ? -unit : +stake;
+          if(is3) plD = (pick==='D') ? -unit : +stake;
+          plA = (pick==='A') ? -unit : +stake;
+        }
+        if(cells.h){ cells.h.textContent=fmt(plH,dpn); cells.h.classList.toggle('pos',plH>0); cells.h.classList.toggle('neg',plH<0); }
+        if(cells.d){ cells.d.textContent=fmt(plD,dpn); cells.d.classList.toggle('pos',plD>0); cells.d.classList.toggle('neg',plD<0); }
+        if(cells.a){ cells.a.textContent=fmt(plA,dpn); cells.a.classList.toggle('pos',plA>0); cells.a.classList.toggle('neg',plA<0); }
+        sumH+=plH; sumA+=plA; if(is3) sumD+=plD;
+      });
+      if(!is3){
+        $('#sum-h').textContent=fmt(sumH,dpn); $('#sum-h').classList.toggle('pos',sumH>0); $('#sum-h').classList.toggle('neg',sumH<0);
+        $('#sum-a').textContent=fmt(sumA,dpn); $('#sum-a').classList.toggle('pos',sumA>0); $('#sum-a').classList.toggle('neg',sumA<0);
+      }else{
+        $('#sum3-h').textContent=fmt(sumH,dpn); $('#sum3-h').classList.toggle('pos',sumH>0); $('#sum3-h').classList.toggle('neg',sumH<0);
+        $('#sum3-d').textContent=fmt(sumD,dpn); $('#sum3-d').classList.toggle('pos',sumD>0); $('#sum3-d').classList.toggle('neg',sumD<0);
+        $('#sum3-a').textContent=fmt(sumA,dpn); $('#sum3-a').classList.toggle('pos',sumA>0); $('#sum3-a').classList.toggle('neg',sumA<0);
+      }
+    }
+    function setMode(to3, keepData=true){
+      is3=!!to3;
+      $('#th-2way').style.display = is3 ? 'none':'table-row';
+      $('#th-3way').style.display = is3 ? 'table-row':'none';
+      $('#sum2').style.display = is3 ? 'none':'grid';
+      $('#sum3').style.display = is3 ? 'grid':'none';
+      updateStepTitle();
+      let data=[];
+      if(keepData){
+        data = $$('#rows tr').map(tr=>({
+          type: tr.querySelector('.type').value,
+          pick: tr.querySelector('.pick').value,
+          ind:  tr.querySelector('.ind').value,
+          dec:  tr.querySelector('.dec').value,
+          stake:tr.querySelector('.stake').value
+        }));
+      }
+      $('#rows').innerHTML='';
+      if(keepData){ data.forEach(d=> newRow(d)); } else { newRow(); }
+      $('#btn2').classList.toggle('active',!is3);
+      $('#btn3').classList.toggle('active',is3);
+    }
+    $('#btn2').onclick=()=> setMode(false);
+    $('#btn3').onclick=()=> setMode(true);
+
+    const sportMode = { custom:null, football_1x2:true, football_ml:false, tennis_ml:false, cricket_t20_odi:false, cricket_test:true, fancy_yesno:false };
+    $('#sport').addEventListener('change',e=>{ const key=e.target.value; if(sportMode[key]!==null){ setMode(!!sportMode[key]); }});
+
+    $('#add').onclick=()=> newRow();
+    $('#clear').onclick=()=>{ $('#rows').innerHTML=''; renum(); recalc(); };
+    $('#preset').onchange=(e)=>{
+      const v=e.target.value;
+      if(v==='two'){ setMode(false,false); $('#rows').innerHTML=''; newRow({type:'Back',pick:'H',ind:87,stake:100}); newRow({type:'Lay',pick:'A',ind:92,stake:100}); }
+      if(v==='three'){ setMode(true,false); $('#rows').innerHTML=''; newRow({type:'Back',pick:'H',ind:87,stake:100}); newRow({type:'Back',pick:'D',ind:450,stake:100}); newRow({type:'Lay',pick:'A',ind:92,stake:100}); }
+    };
+
+    newRow();
+  </script>
+</body>
+</html>
