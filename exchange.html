@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Exchange Match Odds 計算器（完整版）</title>
+<style>
+  :root{
+    /* colors */
+    --bg-dark:#0f1115; --panel-dark:#171a22; --line-dark:#2a3346;
+    --text-dark:#e8ecf1; --muted-dark:#98a3bb;
+    --primary:#6ea8fe; --green:#3fe0b1; --red:#ff7b88; --amber:#ffd166;
+    --chip-blue:#213b66; --chip-pink:#4a2030;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  [data-theme="light"]{
+    --bg:#f7f9fc; --panel:#ffffff; --line:#e2e8f0;
+    --text:#12161f; --muted:#4b576b;
+  }
+  [data-theme="dark"]{
+    --bg:var(--bg-dark); --panel:var(--panel-dark); --line:var(--line-dark);
+    --text:var(--text-dark); --muted:var(--muted-dark);
+  }
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    line-height:1.65; font-size:16px;
+  }
+  header{padding:20px 16px 4px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px 24px}
+  h1{margin:0 0 8px;font-size:28px;font-weight:800;letter-spacing:.3px}
+  .sub{color:var(--muted)}
+  .controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px}
+  .card{
+    margin-top:16px;background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:16px;box-shadow:var(--shadow);
+  }
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn{
+    padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:#1a2332;color:#e9edf4;
+    cursor:pointer;transition:.15s; font-weight:700;
+  }
+  [data-theme="light"] .btn{background:#eef3ff;color:#1b2a4a}
+  .btn:hover{transform:translateY(-1px); box-shadow:0 8px 18px rgba(0,0,0,.25)}
+  .btn-primary{background:linear-gradient(135deg,#355cff,#8e76ff); border:none;color:#fff}
+  .btn-ghost{background:transparent}
+  .btn-danger{background:#3b1e24;border-color:#72343f;color:#fff}
+  .chip{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;border:1px solid var(--line);}
+  .chip-blue{background:var(--chip-blue);color:#9bc8ff;border-color:#2c4b7d}
+  .chip-pink{background:var(--chip-pink);color:#ff9dc1;border-color:#6b2b42}
+  label.small{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+  select,input{padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:#0c0f14;color:var(--text);outline:none}
+  [data-theme="light"] select,[data-theme="light"] input{background:#fff;color:#1c2433}
+  input[type="number"]{width:140px}
+  .muted{color:var(--muted)}
+  table{width:100%;border-collapse:separate;border-spacing:0;margin-top:8px}
+  thead th{
+    position:sticky;top:0;background:rgba(0,0,0,.06);backdrop-filter:blur(2px);
+    color:var(--muted);font-size:13px;text-align:left;padding:10px;border-bottom:1px solid var(--line);
+  }
+  tbody td{padding:8px;border-bottom:1px dashed var(--line);vertical-align:middle}
+  .num{font-variant-numeric:tabular-nums}
+  .pl-pos{color:var(--green);font-weight:800}
+  .pl-neg{color:var(--red);font-weight:800}
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);}
+  .tabs{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .tab{padding:8px 12px;border:1px solid var(--line);border-radius:999px;cursor:pointer}
+  .tab.active{background:var(--primary);color:#fff;border-color:transparent}
+  details.tip{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.02);padding:8px 12px;margin-top:10px}
+  details.tip>summary{cursor:pointer;font-weight:800}
+  .two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  @media (max-width:920px){ .two-col{grid-template-columns:1fr} }
+  .footer{margin-top:10px;font-size:12px;color:var(--muted)}
+  /* Ensure white text for dangerous buttons in dark */
+  [data-theme="dark"] .btn-danger{color:#fff !important}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <h1>Exchange Match Odds 計算器（完整版）</h1>
+  <div class="sub">先選 2-Way / 3-Way，再新增注單。<span class="chip chip-blue">Back＝買進/支持</span> <span class="chip chip-pink">Lay＝賣出/反向</span></div>
+  <div class="controls">
+    <div class="tabs">
+      <div class="tab active" data-mode="2">2-Way（兩路盤）</div>
+      <div class="tab" data-mode="3">3-Way（三路盤）</div>
+    </div>
+    <div class="pill">
+      <div class="chip chip-blue">Back = 賺進</div>
+      <div class="chip chip-pink">Lay = 賣出</div>
+    </div>
+    <div class="row" style="margin-left:auto">
+      <label class="small">小數位數</label>
+      <input id="dp" type="number" value="2" min="0" max="6" />
+      <button class="btn" id="toggleTheme">切換為淺色</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap card">
+  <div class="row" style="justify-content:space-between;align-items:flex-end">
+    <div class="row" style="gap:16px;align-items:flex-end">
+      <button id="addRow" class="btn-primary btn">新增注單</button>
+      <button id="clearAll" class="btn">清空</button>
+      <button id="loadDemo" class="btn">載入示例</button>
+    </div>
+    <div class="row" style="gap:12px">
+      <div>
+        <label class="small">佣金率（%）</label>
+        <input id="commission" type="number" min="0" step="0.01" value="5" />
+      </div>
+      <div>
+        <label class="small">Lay 責任額警示門檻</label>
+        <input id="liabilityCap" type="number" value="10000" min="0" step="1" />
+      </div>
+    </div>
+  </div>
+
+  <table id="betsTable">
+    <thead>
+      <tr>
+        <th style="width:60px">#</th>
+        <th style="width:160px">結果</th>
+        <th style="width:140px">類型</th>
+        <th style="width:180px">賠率<br><span class="muted">Decimal</span></th>
+        <th style="width:180px">投注額<br><span class="muted">Stake</span></th>
+        <th>損益（若 主勝）</th>
+        <th>損益（若 客勝）</th>
+        <th class="th-draw" style="display:none;">損益（若 和局）</th>
+        <th style="width:110px"></th>
+      </tr>
+    </thead>
+    <tbody id="betRows"></tbody>
+  </table>
+
+  <div class="two-col" style="margin-top:14px">
+    <div class="card" style="margin:0">
+      <div class="muted">總損益：主勝</div>
+      <div id="sumHome" class="num" style="font-size:28px;font-weight:900">0.00</div>
+    </div>
+    <div class="card" style="margin:0">
+      <div class="muted">總損益：客勝</div>
+      <div id="sumAway" class="num" style="font-size:28px;font-weight:900">0.00</div>
+    </div>
+    <div class="card th-draw" style="display:none;margin:0">
+      <div class="muted">總損益：和局</div>
+      <div id="sumDraw" class="num" style="font-size:28px;font-weight:900">0.00</div>
+    </div>
+    <div class="card" style="margin:0">
+      <div class="muted">不平衡度（淨額差）</div>
+      <div id="imbalance" class="num" style="font-size:28px;font-weight:900">0.00</div>
+      <div class="footer">越接近 0 代表越平衡（扣佣後）</div>
+    </div>
+  </div>
+
+  <details class="tip">
+    <summary>說明重點（條列版）</summary>
+    <ul>
+      <li><b>Back（買進）</b>：選項發生 → 淨利 = Stake × (Decimal − 1)，不發生 → −Stake。</li>
+      <li><b>Lay（賣出）</b>：選項發生 → 虧損 = −Stake × (Decimal − 1)；不發生 → +Stake。最大可能虧損 = <b>責任額</b>。</li>
+      <li><b>佣金</b>：以「市場合併後淨贏」收取（例如 5%）。本表格以此規則在每個結果上試算。</li>
+      <li><b>深/淺色對比原則</b>：淺色底→深色字；深色底→淺色字（本頁已套用）。</li>
+    </ul>
+  </details>
+
+  <details class="tip">
+    <summary>一鍵全盤綠化（自動計算建議注額）</summary>
+    <div class="row" style="gap:16px;align-items:flex-end">
+      <div>
+        <label class="small">對沖 Back 賠率（Ob）</label>
+        <input id="hedgeBackOdds" type="number" value="3.0" step="0.01" />
+      </div>
+      <div>
+        <label class="small">對沖 Lay 賠率（Ol）</label>
+        <input id="hedgeLayOdds" type="number" value="2.0" step="0.01" />
+      </div>
+      <div>
+        <label class="small">原始 Back 注額（S）</label>
+        <input id="hedgeBackStake" type="number" value="100" step="0.01" />
+      </div>
+      <button id="calcHedge" class="btn">計算 2-Way 等額綠化</button>
+    </div>
+    <div id="hedgeOut" class="footer" style="margin-top:6px"></div>
+  </details>
+
+  <details class="tip">
+    <summary>單一對沖（快速公式）</summary>
+    <div class="row" style="gap:16px;align-items:flex-end">
+      <div>
+        <label class="small">Lay 賠率（對沖用）</label>
+        <input id="qLayOdds" type="number" value="2.0" step="0.01" />
+      </div>
+      <div>
+        <label class="small">Back 注額（S）</label>
+        <input id="qBackStake" type="number" value="100" step="0.01" />
+      </div>
+      <div>
+        <label class="small">Back 賠率（Ob）</label>
+        <input id="qBackOdds" type="number" value="3.0" step="0.01" />
+      </div>
+      <button id="quickHedge" class="btn">計算 Lay 注額＆等額利潤</button>
+    </div>
+    <div id="quickOut" class="footer" style="margin-top:6px"></div>
+  </details>
+
+  <div class="footer">提示：總損益顯示為扣除佣金後之試算金額；以最右上角的設定為準。</div>
+</main>
+
+<script>
+  const fmt = (n, dp=2) => {
+    if(!isFinite(n)) return '0';
+    const f = Number(n).toFixed(dp);
+    // thousand separators
+    return f.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
+  let mode = 2; // 2 or 3
+  const betRows = document.getElementById('betRows');
+  const dpEl = document.getElementById('dp');
+  const commissionEl = document.getElementById('commission');
+  const liabilityCapEl = document.getElementById('liabilityCap');
+  const sumHome = document.getElementById('sumHome');
+  const sumAway = document.getElementById('sumAway');
+  const sumDraw = document.getElementById('sumDraw');
+  const imbalanceEl = document.getElementById('imbalance');
+
+  const thDrawEls = document.querySelectorAll('.th-draw');
+
+  function selectionOptions(){
+    if(mode===2){
+      return [['home','主勝'],['away','客勝']];
+    }
+    return [['home','主勝'],['draw','和局'],['away','客勝']];
+  }
+
+  function addRow(data={}){
+    const tr = document.createElement('tr');
+
+    const tdIdx = document.createElement('td'); tdIdx.className='num'; tr.appendChild(tdIdx);
+
+    const tdSel = document.createElement('td');
+    const sel = document.createElement('select');
+    selectionOptions().forEach(([v,t])=>{
+      const o = document.createElement('option'); o.value=v; o.textContent=t; sel.appendChild(o);
+    });
+    sel.value = data.selection || 'home';
+    tdSel.appendChild(sel); tr.appendChild(tdSel);
+
+    const tdType = document.createElement('td');
+    const typeSel = document.createElement('select');
+    [['Back','Back（買進）'],['Lay','Lay（賣出）']].forEach(([v,t])=>{
+      const o=document.createElement('option');o.value=v;o.textContent=t;typeSel.appendChild(o);
+    });
+    typeSel.value = data.type || 'Back';
+    tdType.appendChild(typeSel); tr.appendChild(tdType);
+
+    const tdOdds = document.createElement('td');
+    const inpOdds = document.createElement('input'); inpOdds.type='number'; inpOdds.step='0.01'; inpOdds.min='1';
+    inpOdds.value = data.odds ?? '';
+    tdOdds.appendChild(inpOdds); tr.appendChild(tdOdds);
+
+    const tdStake = document.createElement('td');
+    const inpStake = document.createElement('input'); inpStake.type='number'; inpStake.step='0.01'; inpStake.min='0';
+    inpStake.value = data.stake ?? '';
+    tdStake.appendChild(inpStake); tr.appendChild(tdStake);
+
+    const tdPH = document.createElement('td'); tdPH.className='num'; tdPH.textContent='0.00'; tr.appendChild(tdPH);
+    const tdPA = document.createElement('td'); tdPA.className='num'; tdPA.textContent='0.00'; tr.appendChild(tdPA);
+    const tdPD = document.createElement('td'); tdPD.className='num th-draw'; tdPD.textContent='0.00'; tr.appendChild(tdPD);
+
+    const tdDel = document.createElement('td');
+    const del = document.createElement('button'); del.className='btn btn-danger'; del.textContent='刪除';
+    del.onclick = ()=>{ tr.remove(); renumber(); recalc(); };
+    tdDel.appendChild(del); tr.appendChild(tdDel);
+
+    [sel,typeSel,inpOdds,inpStake,commissionEl,dpEl].forEach(el=> el.addEventListener('input', recalc));
+    betRows.appendChild(tr);
+    renumber();
+    recalc();
+  }
+
+  function renumber(){
+    [...betRows.children].forEach((tr,i)=> tr.children[0].textContent = i+1);
+  }
+
+  function readRow(tr){
+    const selection = tr.querySelector('select').value;
+    const type = tr.querySelectorAll('select')[1].value;
+    const odds = parseFloat(tr.querySelectorAll('input')[0].value);
+    const stake = parseFloat(tr.querySelectorAll('input')[1].value);
+    return {selection,type,odds,stake};
+  }
+
+  function plFor(bet,outcome){
+    if(!isFinite(bet.odds) || !isFinite(bet.stake) || bet.stake<=0 || bet.odds<=1) return 0;
+    if(bet.type==='Back'){
+      return (bet.selection===outcome) ? bet.stake*(bet.odds-1) : -bet.stake;
+    }else{
+      return (bet.selection===outcome) ? -bet.stake*(bet.odds-1) : bet.stake;
+    }
+  }
+
+  function applyCommission(sum){
+    const rate = Math.max(0, parseFloat(commissionEl.value)||0)/100;
+    return sum>0 ? sum*(1-rate) : sum;
+  }
+
+  function recalc(){
+    const dp = Math.max(0, parseInt(dpEl.value)||0);
+    // update selection options per mode
+    [...betRows.children].forEach(tr=>{
+      const sel = tr.querySelector('select');
+      const cur = sel.value;
+      const opts = selectionOptions();
+      sel.innerHTML='';
+      opts.forEach(([v,t])=>{ const o=document.createElement('option');o.value=v;o.textContent=t; sel.appendChild(o); });
+      if(opts.some(([v])=>v===cur)) sel.value = cur; else sel.value = 'home';
+    });
+    // toggle draw columns
+    thDrawEls.forEach(el=> el.style.display = (mode===3)? 'block':'none');
+    document.querySelectorAll('td.th-draw').forEach(el=> el.style.display = (mode===3)? 'table-cell':'none');
+    document.querySelectorAll('div.th-draw').forEach(el=> el.style.display = (mode===3)? 'block':'none');
+
+    let sumH=0,sumA=0,sumD=0;
+    [...betRows.children].forEach(tr=>{
+      const bet = readRow(tr);
+      // per-row pl
+      const pH = plFor(bet,'home');
+      const pA = plFor(bet,'away');
+      const pD = plFor(bet,'draw');
+
+      // row cells
+      const cells = tr.querySelectorAll('td');
+      const dpv = parseInt(dpEl.value)||2;
+      const tdPH = cells[5], tdPA = cells[6], tdPD = cells[7];
+      tdPH.textContent = fmt(pH, dpv); tdPH.classList.toggle('pl-pos', pH>0); tdPH.classList.toggle('pl-neg', pH<0);
+      tdPA.textContent = fmt(pA, dpv); tdPA.classList.toggle('pl-pos', pA>0); tdPA.classList.toggle('pl-neg', pA<0);
+      if(tdPD){ tdPD.textContent = fmt(pD, dpv); tdPD.classList.toggle('pl-pos', pD>0); tdPD.classList.toggle('pl-neg', pD<0); }
+
+      sumH += pH; sumA += pA; sumD += pD;
+      // warn liability
+      if(bet.type==='Lay' && isFinite(bet.odds) && isFinite(bet.stake)){
+        const liab = bet.stake*(bet.odds-1);
+        const cap = parseFloat(liabilityCapEl.value)||Infinity;
+        if(liab>cap){ tr.style.outline='2px solid var(--red)'; } else { tr.style.outline='none'; }
+      }else{
+        tr.style.outline='none';
+      }
+    });
+
+    // apply commission per outcome
+    sumH = applyCommission(sumH);
+    sumA = applyCommission(sumA);
+    if(mode===3) sumD = applyCommission(sumD);
+
+    const dpv = parseInt(dpEl.value)||2;
+    sumHome.textContent = fmt(sumH, dpv);
+    sumHome.classList.toggle('pl-pos', sumH>0);
+    sumHome.classList.toggle('pl-neg', sumH<0);
+    sumAway.textContent = fmt(sumA, dpv);
+    sumAway.classList.toggle('pl-pos', sumA>0);
+    sumAway.classList.toggle('pl-neg', sumA<0);
+    if(mode===3){
+      sumDraw.textContent = fmt(sumD, dpv);
+      sumDraw.classList.toggle('pl-pos', sumD>0);
+      sumDraw.classList.toggle('pl-neg', sumD<0);
+    }
+
+    const arr = mode===3 ? [sumH,sumD,sumA] : [sumH,sumA];
+    const im = Math.max(...arr) - Math.min(...arr);
+    imbalanceEl.textContent = fmt(im, dpv);
+  }
+
+  document.getElementById('addRow').onclick = ()=> addRow();
+  document.getElementById('clearAll').onclick = ()=>{ betRows.innerHTML=''; recalc(); };
+  document.getElementById('loadDemo').onclick = ()=>{
+    betRows.innerHTML='';
+    // two example bets
+    addRow({selection:'home', type:'Back', odds:1.90, stake:100});
+    addRow({selection:'away', type:'Lay',  odds:2.10, stake:80});
+  };
+
+  // mode tabs
+  document.querySelectorAll('.tab').forEach(tab=>{
+    tab.onclick = ()=>{
+      document.querySelectorAll('.tab').forEach(t=> t.classList.remove('active'));
+      tab.classList.add('active');
+      mode = parseInt(tab.dataset.mode)||2;
+      recalc();
+    };
+  });
+
+  // theme toggle
+  const toggleThemeBtn = document.getElementById('toggleTheme');
+  toggleThemeBtn.onclick = ()=>{
+    const root = document.documentElement;
+    const cur = root.getAttribute('data-theme') || 'dark';
+    const next = cur==='dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    toggleThemeBtn.textContent = next==='dark' ? '切換為淺色' : '切換為深色';
+  };
+
+  // hedge calculators
+  function calc2WayHedge(Ob,Ol,S){
+    if(!(Ob>1 && Ol>1 && S>0)) return null;
+    const L = S * (Ob/Ol);
+    const eq = L - S; // ignoring commission
+    return {L, eq};
+  }
+  document.getElementById('calcHedge').onclick = ()=>{
+    const Ob = parseFloat(document.getElementById('hedgeBackOdds').value);
+    const Ol = parseFloat(document.getElementById('hedgeLayOdds').value);
+    const S  = parseFloat(document.getElementById('hedgeBackStake').value);
+    const r = calc2WayHedge(Ob,Ol,S);
+    const out = document.getElementById('hedgeOut');
+    if(!r){ out.textContent='請輸入正確數值'; return; }
+    const dpv = parseInt(dpEl.value)||2;
+    out.innerHTML = `建議 Lay 注額 L = S × (Ob / Ol) = <b>${fmt(r.L, dpv)}</b><br>
+    等額毛利（未扣佣）= L − S = <b>${fmt(r.eq, dpv)}</b><br>
+    備註：若市場收佣，實得 ≈ 等額毛利 × (1 − 佣金率)`;
+  };
+  document.getElementById('quickHedge').onclick = ()=>{
+    const Ol = parseFloat(document.getElementById('qLayOdds').value);
+    const S  = parseFloat(document.getElementById('qBackStake').value);
+    const Ob = parseFloat(document.getElementById('qBackOdds').value);
+    const r = calc2WayHedge(Ob,Ol,S);
+    const out = document.getElementById('quickOut');
+    if(!r){ out.textContent='請輸入正確數值'; return; }
+    const dpv = parseInt(dpEl.value)||2;
+    out.innerHTML = `等額綠化：在 Lay 賠率 ${Ol} 下，應下 <b>${fmt(r.L, dpv)}</b>；
+    等額毛利 = <b>${fmt(r.eq, dpv)}</b>（未扣佣）`;
+  };
+
+  commissionEl.addEventListener('input', recalc);
+  dpEl.addEventListener('input', recalc);
+  liabilityCapEl.addEventListener('input', recalc);
+
+  // seed one row
+  addRow();
+</script>
+</body>
+</html>
