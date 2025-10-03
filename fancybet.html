@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Fancy Bet（Indian Odds）計算器</title>
+<style>
+:root{
+  --bg:#0f1116; --panel:#121a24; --edge:#233044; --muted:#8fa0b5; --text:#e9f0f7;
+  --accent:#6ea8fe; --accent-2:#9ad0ff; --green:#28d49e; --red:#ff6b81; --amber:#ffd56a;
+  --chip:#172234; --chip2:#2a1d2a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,Segoe UI,Roboto,Arial,sans-serif;line-height:1.55}
+.wrap{max-width:1100px;margin:0 auto;padding:18px}
+h1{margin:4px 0 14px;font-size:26px}
+.sub{color:var(--muted);font-size:14px;margin-bottom:12px}
+.card{background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:14px;box-shadow:0 10px 28px rgba(0,0,0,.35)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+label.small{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+input,select,button{border-radius:10px;border:1px solid var(--edge);background:#0d141d;color:var(--text);padding:10px 12px;outline:none}
+input[type=number]{width:120px}
+select{min-width:120px}
+button{cursor:pointer;background:#182232;transition:.15s}
+button:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.35)}
+.btn{padding:9px 14px;border:1px solid var(--edge)}
+.btn-ghost{background:transparent}
+.btn-accent{background:linear-gradient(135deg,#386bff,#9a8cff);border:none}
+.btn-danger{background:linear-gradient(135deg,#ff5a7a,#ff7a5a);border:none}
+.badge{display:inline-block;padding:3px 8px;border-radius:999px;font-size:12px;border:1px solid var(--edge);background:var(--chip);color:#b8cff3}
+.badge-pink{background:var(--chip2);color:#ffc6dc}
+hr{border:0;border-top:1px dashed var(--edge);margin:12px 0}
+/* tabs */
+.tabs{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.tab-btn{padding:8px 14px;border-radius:999px;border:1px solid var(--edge);background:#0d141d;color:var(--text);cursor:pointer}
+.tab-btn.active{background:#2b3850;color:#fff;border-color:#4b5e7b}
+.tab{display:none}
+.tab.active{display:block}
+/* table */
+table{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden;border-radius:10px;border:1px solid var(--edge)}
+thead th{position:sticky;top:0;background:#0f1724;color:#9fb0c6;text-align:left;padding:10px;font-size:13px;border-bottom:1px solid var(--edge)}
+tbody td{padding:8px 10px;border-bottom:1px dashed var(--edge);vertical-align:middle}
+tfoot td{padding:10px;background:#0f1724;color:#bcd0e8}
+tr:last-child td{border-bottom:0}
+.kpi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+.box{background:#0e1520;border:1px solid var(--edge);border-radius:12px;padding:12px}
+.box h4{margin:0 0 6px;color:#a8bad3;font-size:13px}
+.val{font-weight:800;font-size:22px}
+.pos{color:var(--green)} .neg{color:var(--red)}
+/* tip */
+details.tip{margin-top:12px}
+details.tip summary{cursor:pointer;list-style:none;padding:10px 12px;border:1px solid var(--edge);border-radius:10px;background:#0d141d;color:#cfe3ff}
+details.tip summary::marker, details.tip summary::-webkit-details-marker{display:none}
+details.tip .tip-body{margin-top:10px;background:#0c121a;border:1px solid var(--edge);border-radius:10px;padding:12px}
+code{background:#0b1118;border:1px solid #1a2230;border-radius:6px;padding:2px 6px}
+/* helpers */
+.right{margin-left:auto}
+.num{font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Fancy Bet（Indian Odds）計算器</h1>
+  <div class="sub">支援「分數線 YES/NO」與「一般 YES/NO」；印度賠率↔十進制換算。等於分數線時的判定可自訂（作廢/判 YES/判 NO）。</div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="line">分數線 YES/NO</button>
+    <button class="tab-btn" data-tab="simple">一般 YES/NO</button>
+    <button class="tab-btn" data-tab="conv">賠率換算</button>
+    <div class="right row">
+      <label class="small">等於分數線（=runs）時：</label>
+      <select id="tieRule">
+        <option value="void">作廢（Push）</option>
+        <option value="yes">判 YES 勝</option>
+        <option value="no">判 NO 勝</option>
+      </select>
+      <label class="small">小數位</label>
+      <input id="decimals" type="number" min="0" max="4" value="2"/>
+      <button id="loadDemo" class="btn btn-ghost">載入示例</button>
+      <button id="clearAll" class="btn btn-danger">清空</button>
+    </div>
+  </div>
+
+  <div id="tab-line" class="tab active">
+    <div class="row" style="margin-bottom:8px">
+      <span class="badge">YES：達到/超過分數線</span>
+      <span class="badge-pink">NO：未達分數線</span>
+    </div>
+    <div class="card">
+      <table id="lineTable">
+        <thead>
+          <tr>
+            <th style="width:46px">#</th>
+            <th>市場名稱</th>
+            <th>你的選項</th>
+            <th>分數線（runs）</th>
+            <th>印度賠率</th>
+            <th>投注額 Stake</th>
+            <th>實際結果（runs）</th>
+            <th style="width:120px">損益（P/L）</th>
+            <th style="width:72px"></th>
+          </tr>
+        </thead>
+        <tbody id="lineBody"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="9">
+              <div class="kpi">
+                <div class="box"><h4>總損益</h4><div id="sumPL" class="val num">0.00</div></div>
+                <div class="box"><h4>筆數統計</h4><div><span id="cntW">0</span> 贏，<span id="cntV">0</span> 作廢，<span id="cntL">0</span> 輸</div></div>
+                <div class="box"><h4>口訣</h4><div>贏利＝ stake × (Indian/100)；輸＝ stake；作廢＝ 0</div></div>
+              </div>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+      <div class="row" style="margin-top:10px">
+        <button id="addRow" class="btn btn-accent">新增一筆</button>
+      </div>
+
+      <details class="tip">
+        <summary>Fancy Bet 規則說明（含「作廢」）</summary>
+        <div class="tip-body">
+          <ul>
+            <li>此工具採 <b>印度賠率（Indian Odds）</b>：<code>贏利 = stake × (odds/100)</code>，輸＝<code>stake</code>。</li>
+            <li>分數線玩法：<b>YES = 結果 ≥ 分數線</b>，<b>NO = 結果 &lt; 分數線</b>。遇到 <code>結果 = 分數線</code> 時，遵照上方「等於分數線」設定。</li>
+            <li>常見處理：棒球/板球等若比賽未完成或規則條件不達標，平台可能判定為 <b>作廢（void/push）</b>。此時損益為 0。</li>
+            <li>提示：實際結算以平台規則為準。本工具僅作快速試算。</li>
+          </ul>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div id="tab-simple" class="tab">
+    <div class="card">
+      <div class="row">
+        <div>
+          <label class="small">你的選項</label>
+          <select id="simplePick">
+            <option value="yes">YES</option>
+            <option value="no">NO</option>
+          </select>
+        </div>
+        <div>
+          <label class="small">印度賠率</label>
+          <input id="simpleOdds" type="number" step="0.01" placeholder="如 90"/>
+        </div>
+        <div>
+          <label class="small">Stake</label>
+          <input id="simpleStake" type="number" step="0.01" placeholder="如 100"/>
+        </div>
+        <div>
+          <label class="small">實際結果（YES/NO）</label>
+          <select id="simpleRes">
+            <option value="win">我的選項贏</option>
+            <option value="lose">我的選項輸</option>
+            <option value="void">作廢</option>
+          </select>
+        </div>
+        <button id="simpleCalc" class="btn btn-accent">計算</button>
+      </div>
+      <hr/>
+      <div class="row">
+        <div class="box">
+          <h4>損益（P/L）</h4>
+          <div id="simplePL" class="val num">0.00</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-conv" class="tab">
+    <div class="card">
+      <div class="row">
+        <div>
+          <label class="small">Indian → Decimal</label>
+          <input id="indIn" type="number" step="0.01" placeholder="如 80"/>
+        </div>
+        <div class="box"><h4>Decimal</h4><div id="decOut" class="val num">—</div></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div>
+          <label class="small">Decimal → Indian</label>
+          <input id="decIn" type="number" step="0.01" placeholder="如 1.80"/>
+        </div>
+        <div class="box"><h4>Indian</h4><div id="indOut" class="val num">—</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// helpers
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+function fmt(n, dp){
+  if(!isFinite(n)) return '0';
+  return Number(n).toLocaleString('en-US', {minimumFractionDigits:dp, maximumFractionDigits:dp});
+}
+function toNum(el){ const v = parseFloat(el.value); return isFinite(v)? v:0; }
+
+// Tabs
+$$('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    $$('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    $$('.tab').forEach(t=>t.classList.remove('active'));
+    $('#tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// Line YES/NO table
+const body = $('#lineBody');
+function renumber(){
+  [...body.children].forEach((tr,i)=> tr.querySelector('.idx').textContent = i+1);
+}
+function addRow(data={}){
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td class="idx num">0</td>
+    <td><input type="text" placeholder="市場名稱"/></td>
+    <td>
+      <select>
+        <option value="yes">YES</option>
+        <option value="no">NO</option>
+      </select>
+    </td>
+    <td><input type="number" step="0.01" placeholder="如 128"/></td>
+    <td><input type="number" step="0.01" placeholder="如 90"/></td>
+    <td><input type="number" step="0.01" placeholder="如 100"/></td>
+    <td><input type="number" step="0.01" placeholder="實際 runs"/></td>
+    <td class="num pl">0.00</td>
+    <td><button class="btn btn-ghost del">刪除</button></td>
+  `;
+  body.appendChild(tr);
+  const [idx, mkt, pick, line, odds, stake, runs, plCell] = tr.children;
+  if(data.pick) pick.querySelector('select').value = data.pick;
+  if(data.line!=null) line.querySelector('input').value = data.line;
+  if(data.odds!=null) odds.querySelector('input').value = data.odds;
+  if(data.stake!=null) stake.querySelector('input').value = data.stake;
+  if(data.runs!=null) runs.querySelector('input').value = data.runs;
+
+  tr.querySelector('.del').addEventListener('click', ()=>{ tr.remove(); renumber(); recalc(); });
+  tr.querySelectorAll('input,select').forEach(el=> el.addEventListener('input', recalc));
+  renumber(); recalc();
+}
+function ruleEqualOutcome(pick, tieRule){
+  // return 'win' | 'lose' | 'void' when result == line
+  if(tieRule==='void') return 'void';
+  if(tieRule==='yes') return (pick==='yes')? 'win' : 'lose';
+  if(tieRule==='no')  return (pick==='no') ? 'win' : 'lose';
+  return 'void';
+}
+function recalc(){
+  const dp = Math.max(0, Math.min(4, parseInt($('#decimals').value)||0));
+  let w=0,v=0,l=0, sum=0;
+  [...body.children].forEach(tr=>{
+    const pick = tr.children[2].querySelector('select').value; // yes/no
+    const line = toNum(tr.children[3].querySelector('input'));
+    const odds = toNum(tr.children[4].querySelector('input'));
+    const stake = toNum(tr.children[5].querySelector('input'));
+    const runs = toNum(tr.children[6].querySelector('input'));
+    let outcome = 'void';
+    if(runs > line) outcome = 'yes';
+    else if(runs < line) outcome = 'no';
+    else outcome = 'eq';
+
+    let pl = 0;
+    if(outcome==='eq'){
+      const r = ruleEqualOutcome(pick, $('#tieRule').value);
+      if(r==='win'){ pl = stake * (odds/100); w++; }
+      else if(r==='lose'){ pl = -stake; l++; }
+      else { v++; }
+    }else{
+      if(pick===outcome){ pl = stake * (odds/100); w++; }
+      else { pl = -stake; l++; }
+    }
+    sum += pl;
+    const cell = tr.querySelector('.pl');
+    cell.textContent = fmt(pl, dp);
+    cell.classList.toggle('pos', pl>0); cell.classList.toggle('neg', pl<0);
+  });
+  $('#sumPL').textContent = fmt(sum, Math.max(0, Math.min(2, parseInt($('#decimals').value)||0)));
+  $('#cntW').textContent = w; $('#cntV').textContent = v; $('#cntL').textContent = l;
+}
+$('#addRow').addEventListener('click', ()=> addRow());
+$('#clearAll').addEventListener('click', ()=>{ body.innerHTML=''; renumber(); recalc(); });
+$('#decimals').addEventListener('input', recalc);
+$('#tieRule').addEventListener('change', recalc);
+
+// Demo
+$('#loadDemo').addEventListener('click', ()=>{
+  body.innerHTML='';
+  addRow({pick:'yes', line:128, odds:300, stake:100, runs:130});
+  addRow({pick:'no',  line:27,  odds:110, stake:100, runs:28});
+});
+
+// Simple YES/NO
+$('#simpleCalc').addEventListener('click', ()=>{
+  const odds = toNum($('#simpleOdds'));
+  const stake = toNum($('#simpleStake'));
+  const res = $('#simpleRes').value;
+  const dp = Math.max(0, Math.min(4, parseInt($('#decimals').value)||0));
+  let pl = 0;
+  if(res==='win') pl = stake * (odds/100);
+  else if(res==='lose') pl = -stake;
+  else pl = 0;
+  $('#simplePL').textContent = fmt(pl, dp);
+  $('#simplePL').classList.toggle('pos', pl>0);
+  $('#simplePL').classList.toggle('neg', pl<0);
+});
+
+// Converter
+$('#indIn').addEventListener('input', ()=>{
+  const v = toNum($('#indIn'));
+  const dec = v/100 + 1;
+  $('#decOut').textContent = isFinite(dec) && dec>0 ? dec.toFixed(2) : '—';
+});
+$('#decIn').addEventListener('input', ()=>{
+  const v = toNum($('#decIn'));
+  const ind = (v-1)*100;
+  $('#indOut').textContent = isFinite(ind) ? ind.toFixed(2) : '—';
+});
+
+// Seed one row
+addRow();
+</script>
+</body>
+</html>
